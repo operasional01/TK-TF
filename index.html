@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TK/TF Analisis Jalan Tol</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;background:#f1f5f9;margin:0;color:#0f172a}
+.container{max-width:1400px;margin:auto;padding:20px}
+h1{margin:0 0 6px;font-size:26px}
+.subtitle{color:#64748b;margin-bottom:20px}
+.panel{background:#fff;border-radius:12px;padding:18px;margin-bottom:18px;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.panel h2{font-size:18px;margin:0 0 15px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+label{font-size:13px;font-weight:bold;color:#334155}
+input,select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:7px;margin-top:5px;font-size:14px}
+button{border:0;border-radius:7px;padding:10px 14px;cursor:pointer;font-weight:bold;margin:4px}
+.btn-primary{background:#2563eb;color:#fff}.btn-success{background:#16a34a;color:#fff}
+.btn-warning{background:#d97706;color:#fff}.btn-danger{background:#dc2626;color:#fff}
+.btn-secondary{background:#475569;color:#fff}
+.actions{margin-top:15px}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.card{padding:16px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0}
+.card .title{font-size:12px;color:#64748b}.card .value{font-size:22px;font-weight:bold;margin-top:7px}
+.table-wrap{overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border:1px solid #e2e8f0;padding:8px;text-align:center;white-space:nowrap}
+th{background:#e2e8f0}
+.chart-box{height:360px}
+.note{background:#eff6ff;border-left:4px solid #2563eb;padding:12px;font-size:13px;line-height:1.5}
+.small{font-size:12px;color:#64748b}.status-low{color:#15803d}.status-medium{color:#b45309}.status-high{color:#dc2626}
+@media(max-width:900px){.grid,.cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.grid,.cards{grid-template-columns:1fr}}
+.hotspot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.hotspot-actions{margin-top:12px}
+.hotspot-table-wrap{overflow:auto;margin-top:15px}
+.hotspot-empty{padding:18px;text-align:center;color:#64748b;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px}
+@media(max-width:900px){.hotspot-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.hotspot-grid{grid-template-columns:1fr}}
+
+
+.status-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+.status-box{padding:15px;border-radius:10px;border:1px solid #e2e8f0;background:#f8fafc}
+.status-title{font-size:12px;color:#64748b;font-weight:bold}.status-value{font-size:19px;font-weight:bold;margin-top:6px}
+.status-desc{font-size:12px;color:#475569;margin-top:5px;line-height:1.4}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:bold}
+.good{background:#dcfce7;color:#166534}.watch{background:#fef3c7;color:#92400e}.alert{background:#fee2e2;color:#991b1b}.neutral{background:#e2e8f0;color:#334155}
+@media(max-width:900px){.status-grid{grid-template-columns:1fr}}
+
+.historical-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:15px}
+.historical-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:15px}
+.historical-card .htitle{font-size:12px;color:#64748b;font-weight:bold}
+.historical-card .hvalue{font-size:24px;font-weight:bold;margin-top:6px}
+.historical-card .hperiod{font-size:13px;color:#475569;margin-top:5px}
+@media(max-width:700px){.historical-grid{grid-template-columns:1fr}}
+
+.table-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f8fafc;font-size:13px}
+.table-pagination .pagination-left,.table-pagination .pagination-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.table-pagination select{padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff}
+.table-pagination button{padding:5px 10px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer}
+.table-pagination button:disabled{opacity:.45;cursor:not-allowed}
+
+.va-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.va-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+#vaTableWrap{overflow:auto;margin-top:12px}
+#vaTableWrap table{min-width:1200px}
+#vaTableWrap td{white-space:nowrap}
+@media(max-width:900px){.va-grid,.va-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.va-grid,.va-cards{grid-template-columns:1fr}}
+
+
+.va-recommendation{border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin:10px 0;background:#fff}
+.va-rec-high{border-left:5px solid #dc2626}.va-rec-medium{border-left:5px solid #d97706}.va-rec-low{border-left:5px solid #16a34a}
+.va-rec-title{font-weight:bold;margin-bottom:6px}.va-rec-meta{font-size:12px;color:#64748b;margin-bottom:8px}.va-rec-list{margin:6px 0 0 18px;padding:0;line-height:1.5;font-size:13px}
+
+/* Layout sidebar */
+body{background:#f1f5f9}
+.app-sidebar{position:fixed;inset:0 auto 0 0;width:270px;background:#fff;border-right:1px solid #e2e8f0;z-index:1000;display:flex;flex-direction:column;padding:18px 14px;transition:transform .25s ease;overflow-y:auto}
+.sidebar-brand{display:flex;align-items:center;gap:10px;padding:4px 8px 20px;border-bottom:1px solid #e2e8f0}
+.brand-mark{width:42px;height:42px;border-radius:12px;background:#dbeafe;display:grid;place-items:center;font-size:22px}
+.sidebar-brand strong{display:block;color:#1d4ed8;font-size:15px}.sidebar-brand small{display:block;color:#64748b;font-size:11px;margin-top:4px}
+.sidebar-profile{display:flex;align-items:center;gap:10px;padding:20px 8px;border-bottom:1px solid #e2e8f0;margin-bottom:18px}
+.profile-avatar{width:42px;height:42px;border-radius:50%;background:#e2e8f0;color:#475569;display:grid;place-items:center;font-weight:bold;font-size:13px}
+.sidebar-profile strong{display:block;font-size:12px;color:#334155}.sidebar-profile small{display:block;color:#64748b;font-size:11px;margin-top:4px}
+.sidebar-section-label{font-size:10px;font-weight:700;letter-spacing:1px;color:#94a3b8;padding:0 10px 8px}
+.sidebar-nav{display:grid;gap:5px}.sidebar-link{display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin:0;padding:11px 12px;border-radius:8px;background:transparent;color:#475569;font-size:13px;font-weight:600}
+.sidebar-link span{width:22px;text-align:center;font-size:17px;color:#64748b}.sidebar-link:hover{background:#f1f5f9}.sidebar-link.active{background:#eff6ff;color:#1d4ed8}.sidebar-link.active span{color:#2563eb}
+.sidebar-footer{margin-top:auto;padding:18px 10px 4px;border-top:1px solid #e2e8f0;color:#475569;font-size:12px;line-height:1.7}.sidebar-footer small{color:#94a3b8}
+.container{margin-left:270px;max-width:none;padding:24px;min-height:100vh}
+.sidebar-toggle{display:none;position:fixed;top:12px;left:12px;z-index:1100;border:0;border-radius:8px;background:#1d4ed8;color:#fff;padding:10px 12px;box-shadow:0 2px 8px #0002}
+.sidebar-page{display:none}.sidebar-page.active-page{display:block}
+@media(max-width:760px){.app-sidebar{transform:translateX(-100%);width:270px;box-shadow:0 0 30px #0002}.app-sidebar.open{transform:translateX(0)}.sidebar-toggle{display:block}.container{margin-left:0;padding:68px 12px 18px}h1{font-size:22px}.sidebar-page .grid,.sidebar-page .cards{grid-template-columns:1fr}}
+\n</style>
+</head>
+<body>
+<button id="sidebarToggle" class="sidebar-toggle" type="button" aria-label="Buka menu">☰ Menu</button>
+<aside class="app-sidebar" id="appSidebar" aria-label="Navigasi utama">
+  <div class="sidebar-brand"><div class="brand-mark">🛣️</div><div><strong>Analisis Jalan Tol</strong><small>TK, TF & Black Spot</small></div></div>
+  <div class="sidebar-profile"><div class="profile-avatar">DO</div><div><strong>DIVISI OPERASI</strong><small>Layanan Lalu Lintas</small></div></div>
+  <div class="sidebar-section-label">MENU ANALISIS</div>
+  <nav class="sidebar-nav">
+    <button type="button" class="sidebar-link active" data-target="panel-input"><span>✎</span> Input Data</button>
+    <button type="button" class="sidebar-link" data-target="panel-indikator"><span>◉</span> Indikator Utama</button>
+    <button type="button" class="sidebar-link" data-target="panel-status"><span>⇄</span> Status Keselamatan</button>
+    <button type="button" class="sidebar-link" data-target="panel-rekap"><span>▤</span> Rekapitulasi Data</button>
+    <button type="button" class="sidebar-link" data-target="panel-grafik"><span>▥</span> Grafik Tren</button>
+    <button type="button" class="sidebar-link" data-target="panel-hotspot"><span>⌖</span> Lokasi Titik Rawan</button>
+    <button type="button" class="sidebar-link" data-target="panel-volume"><span>▦</span> Analisis Black Spot</button>
+    <button type="button" class="sidebar-link" data-target="panel-rumus"><span>∑</span> Rumus Perhitungan</button>
+  </nav>
+  <div class="sidebar-footer">Monitoring Keselamatan<br><small>Analisis berbasis exposure kendaraan-km</small></div>
+</aside>
+<div class="container">
+<h1>Analisis Tingkat Kecelakaan & Fatalitas Jalan Tol</h1>
+<div class="subtitle">Perhitungan berbasis exposure kendaraan-km</div>
+
+<div class="panel sidebar-page active-page" id="panel-input">
+<h2>1. Input Data</h2>
+<div class="grid">
+<div><label>Periode</label><input id="periode" type="month"></div>
+<div><label>LHR (kendaraan/hari)</label><input id="lhr" type="number" min="0" step="1"></div>
+<div><label>Panjang Ruas (km)</label><input id="panjang" type="number" min="0" step="0.01"></div>
+<div><label>Jumlah Hari</label><input id="hari" type="number" min="1" max="31" value="30"></div>
+<div><label>Jumlah Kecelakaan</label><input id="kecelakaan" type="number" min="0" step="1"></div>
+<div><label>Meninggal Dunia</label><input id="meninggal" type="number" min="0" step="1"></div>
+<div><label>Luka Berat</label><input id="lukaBerat" type="number" min="0" step="1"></div>
+<div><label>Luka Ringan</label><input id="lukaRingan" type="number" min="0" step="1"></div>
+</div>
+<div class="actions">
+<button class="btn-primary" id="btnTambahData" onclick="tambahData()">+ Tambah Data</button>
+<button class="btn-secondary" id="btnBatalEditData" type="button" onclick="batalEditData()" style="display:none">Batal Edit</button>
+<button class="btn-secondary" onclick="downloadTemplate()">Download Form</button>
+<label style="display:inline-block">
+<button class="btn-success" type="button" onclick="document.getElementById('fileExcel').click()">Upload Form</button>
+</label>
+<input id="fileExcel" type="file" accept=".xlsx,.xls" style="display:none" onchange="uploadExcel(event)">
+<button class="btn-warning" onclick="downloadHasil()">Export Excel</button>
+<button class="btn-success" onclick="saveLocal()">💾 Save Data</button>
+<button class="btn-secondary" onclick="loadLocal()">↻ Load Data</button>
+<button class="btn-danger" onclick="hapusSemua()">Hapus All Data</button>
+<button class="btn-danger" onclick="clearLocal()">Hapus Local Storage</button>
+</div>
+</div>
+
+<div class="panel sidebar-page" id="panel-indikator">
+<h2>2. Indikator Utama s/d Bulan Lalu</h2>
+<div class="cards">
+<div class="card"><div class="title">Exposure Kendaraan-km</div><div class="value" id="exposure">0</div></div>
+<div class="card"><div class="title">Tingkat Kecelakaan</div><div class="value" id="tk">0</div><div class="small">/ 100 juta kendaraan-km</div></div>
+<div class="card"><div class="title">Tingkat Fatalitas</div><div class="value" id="tf">0</div><div class="small">kematian / 100 juta kendaraan-km</div></div>
+<div class="card"><div class="title">Fatalitas / 100 Kecelakaan</div><div class="value" id="fatal100">0</div></div>
+<div class="card"><div class="title">Kecelakaan / km</div><div class="value" id="accKm">0</div></div>
+</div>
+</div>
+
+<div class="panel sidebar-page" id="panel-status">
+<h2>3. Analisis Status Keselamatan Jalan Tol s/d Bulan Lalu</h2>
+<div style="margin-bottom:12px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc">
+<label for="benchmarkTfInput">Benchmark Tingkat Fatalitas Nasional BPJT 2024 (per 100 juta kendaraan-km)</label>
+<input id="benchmarkTfInput" type="number" min="0" step="0.0001" value="0.1211"
+onchange="updateBenchmarkTf()" oninput="updateBenchmarkTf(false)" style="max-width:260px">
+<button class="btn-primary" type="button" onclick="updateBenchmarkTf(true)">↻ Update Benchmark</button>
+<div class="small" style="margin-top:5px">Masukkan nilai benchmark baru, lalu klik <b>Update Benchmark</b>. Nilai akan langsung diperbarui pada status di bawah.</div>
+</div>
+<div class="note">
+<b>Metode status:</b> penilaian menggunakan histori ruas sendiri berdasarkan persentil P50, P75, dan P90.
+Benchmark nasional BPJT ditampilkan sebagai <b>pembanding kinerja</b>, bukan batas lulus/gagal regulasi.
+<br><br>
+<b>Benchmark Tingkat Fatalitas Nasional BPJT 2024:</b> <span id="benchmarkTfText">0,00</span> per 100 juta kendaraan-km (Disarankan Untuk Update Nilai Berkala) .
+</div>
+<div class="status-grid">
+<div class="status-box">
+<div class="status-title">STATUS TINGKAT KECELAKAAN</div>
+<div class="status-value" id="statusTk"><span class="badge neutral">BELUM ADA DATA</span></div>
+<div class="status-desc" id="statusTkDesc">Masukkan data bulanan untuk analisis.</div>
+</div>
+<div class="status-box">
+<div class="status-title">STATUS TINGKAT FATALITAS</div>
+<div class="status-value" id="statusTf"><span class="badge neutral">BELUM ADA DATA</span></div>
+<div class="status-desc" id="statusTfDesc">Masukkan data bulanan untuk analisis.</div>
+</div>
+<div class="status-box">
+<div class="status-title">STATUS KESELAMATAN RUAS</div>
+<div class="status-value" id="statusOverall"><span class="badge neutral">BELUM ADA DATA</span></div>
+<div class="status-desc" id="statusOverallDesc">Status mengikuti indikator dengan risiko relatif lebih tinggi.</div>
+</div>
+</div>
+
+<div class="historical-grid">
+<div class="historical-card">
+  <div class="htitle">TINGKAT KECELAKAAN TERTINGGI HISTORIS</div>
+  <div class="hvalue" id="maxTkHistoris">0,00</div>
+  <div class="hperiod" id="maxTkHistorisPeriod">Belum ada data</div>
+</div>
+<div class="historical-card">
+  <div class="htitle">TINGKAT FATALITAS TERTINGGI HISTORIS</div>
+  <div class="hvalue" id="maxTfHistoris">0,00</div>
+  <div class="hperiod" id="maxTfHistorisPeriod">Belum ada data</div>
+</div>
+</div>
+
+<div class="small" style="margin-top:12px">
+🟢 ≤ P50 = Relatif Aman &nbsp;|&nbsp; 🟡 P50–P75 = Perlu Pemantauan &nbsp;|&nbsp; 🟠 P75–P90 = Perlu Perhatian &nbsp;|&nbsp; 🔴 &gt; P90 = Prioritas Evaluasi.
+</div>
+</div>
+
+<div class="panel sidebar-page" id="panel-rekap">
+<h2>4. Rekapitulasi Data</h2>
+<div class="table-wrap">
+<table id="dataTable">
+<thead><tr>
+<th>No</th><th>Periode</th><th>LHR</th><th>Panjang (km)</th><th>Hari</th>
+<th>Kecelakaan</th><th>Meninggal</th><th>Luka Berat</th><th>Luka Ringan</th>
+<th>Exposure</th><th>Tingkat Kecelakaan</th><th>Tingkat Fatalitas</th><th>Fatal/100 Kec.</th><th>Aksi</th>
+</tr></thead>
+<tbody></tbody>
+</table>
+</div>
+<div id="dataTablePagination" class="table-pagination"></div>
+</div>
+
+<div class="panel sidebar-page" id="panel-grafik">
+<h2>5. Grafik Tren</h2>
+<div class="chart-box"><canvas id="trendChart"></canvas></div>
+</div>
+
+<div class="panel sidebar-page" id="panel-hotspot">
+<h2>6. Lokasi Titik Rawan Kecelakaan</h2>
+<div class="note">
+Panel ini digunakan untuk mencatat lokasi/titik rawan secara manual. Data titik rawan <b>tidak mengubah perhitungan indikator utama</b> pada panel sebelumnya.
+</div>
+
+<div class="hotspot-grid" style="margin-top:14px">
+<div><label>Lokasi / Nama Titik</label><input id="hotspotLokasi" type="text" placeholder="Contoh: KM 15+500 / Jembatan"></div>
+<div><label>STA / KM</label><input id="hotspotSta" type="text" placeholder="Contoh: 15+500"></div>
+<div><label>Arah</label>
+<select id="hotspotArah">
+<option value="">Pilih arah</option>
+<option value="Semarang">Semarang</option>
+<option value="Demak">Demak</option>
+<option value="Dua Arah">Dua Arah</option>
+<option value="Lainnya">Lainnya</option>
+</select></div>
+<div><label>Jumlah Kecelakaan</label><input id="hotspotKecelakaan" type="number" min="0" step="1" value="0"></div>
+<div><label>Meninggal Dunia</label><input id="hotspotMeninggal" type="number" min="0" step="1" value="0"></div>
+<div><label>Luka Berat</label><input id="hotspotLukaBerat" type="number" min="0" step="1" value="0"></div>
+<div><label>Luka Ringan</label><input id="hotspotLukaRingan" type="number" min="0" step="1" value="0"></div>
+<div><label>Latitude</label><input id="hotspotLat" type="number" step="0.000001" placeholder="Contoh: -6.900000"></div>
+<div><label>Longitude</label><input id="hotspotLng" type="number" step="0.000001" placeholder="Contoh: 110.500000"></div>
+<div><label>Label / Notasi Google Earth</label><input id="hotspotLabel" type="text" placeholder="Contoh: TF / TK"></div>
+<div><label>Keterangan</label><input id="hotspotKeterangan" type="text" placeholder="Contoh: Titik Fatalitas / Titik Kecelakaan"></div>
+</div>
+
+<div class="hotspot-actions">
+<button class="btn-primary" type="button" onclick="tambahHotspot()">+ Tambah Data</button>
+<button class="btn-secondary" type="button" onclick="downloadHotspotTemplate()">Download Form</button>
+<button class="btn-success" type="button" onclick="document.getElementById('hotspotExcelFile').click()">Upload Form</button>
+<input id="hotspotExcelFile" type="file" accept=".xlsx,.xls" style="display:none" onchange="uploadHotspotExcel(event)">
+<button class="btn-secondary" type="button" onclick="downloadHotspotExcel()">Export Data</button>
+<button class="btn-success" type="button" onclick="downloadHotspotKML()">🌍 Download File KML</button>
+<button class="btn-danger" type="button" onclick="hapusSemuaHotspot()">Hapus All Data</button>
+</div>
+
+<div style="margin-top:14px;padding:12px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+  <label for="hotspotFilter" style="margin:0;font-weight:700">Filter Tampilan:</label>
+  <select id="hotspotFilter" onchange="setHotspotFilter(this.value)" style="max-width:260px">
+    <option value="all">Semua Titik</option>
+    <option value="fatalitas">Titik Fatalitas</option>
+    <option value="kecelakaan">Titik Kecelakaan</option>
+  </select>
+  <button class="btn-success" type="button" onclick="bukaGoogleEarthSemuaFilter()">🌍 Earth Online</button>
+  <button class="btn-secondary" type="button" onclick="bukaGoogleEarthProBridge()">🌍 Earth Pro</button>
+  <button class="btn-secondary" type="button" onclick="downloadFilteredKMLPro()">🌍 KML Earth Pro</button>
+  <span class="small" id="hotspotFilterInfo">Menampilkan semua titik.</span>
+</div>
+
+<div id="hotspotTableWrap" class="hotspot-table-wrap"></div>
+<div id="hotspotPagination" class="table-pagination"></div>
+</div>
+
+
+<div class="panel sidebar-page" id="panel-volume">
+  <h2>7. Analisis Kecelakaan Berdasarkan Volume Kendaraan</h2>
+  <div class="note">
+    Modul tambahan ini menganalisis kecelakaan per titik atau per ruas berdasarkan paparan lalu lintas. Data dan perhitungannya tersimpan terpisah dari indikator utama serta panel titik rawan yang sudah ada.
+    <br><b>Catatan:</b> untuk analisis per titik, panjang yang diisi adalah panjang segmen representatif yang digunakan sebagai paparan. Pastikan volume mewakili titik/segmen dan periode yang sama.
+  </div>
+  <div class="va-grid" style="margin-top:14px">
+    <div><label>Periode (bulan)</label><input id="vaPeriode" type="month"></div>
+    <div><label>Cakupan analisis</label><select id="vaJenis"><option value="Titik">Per titik kecelakaan</option><option value="Ruas">Per ruas jalan tol</option></select></div>
+    <div><label>Nama titik / ruas</label><input id="vaLokasi" type="text" placeholder="Contoh: KM 15+500 / Ruas A"></div>
+    <div><label>Arah</label><select id="vaArah"><option value="">Pilih arah</option><option value="Semarang">Semarang</option><option value="Demak">Demak</option><option value="Dua Arah">Dua Arah</option><option value="Lainnya">Lainnya</option></select></div>
+    <div><label>Sumber volume</label><select id="vaMode" onchange="vaUpdateModeLabel()"><option value="lhr">LHR (kendaraan/hari)</option><option value="vll">VLL bulanan (kendaraan/bulan)</option></select></div>
+    <div><label id="vaVolumeLabel">LHR (kendaraan/hari)</label><input id="vaVolume" type="number" min="0" step="1" placeholder="Masukkan volume"></div>
+    <div><label>Jumlah hari pada periode</label><input id="vaHari" type="number" min="1" max="31" value="30"></div>
+    <div><label>Panjang ruas/segmen paparan (km)</label><input id="vaPanjang" type="number" min="0.001" step="0.001" placeholder="Contoh: 1"></div>
+    <div><label>Jumlah kecelakaan</label><input id="vaKecelakaan" type="number" min="0" step="1" value="0"></div>
+    <div><label>Korban meninggal dunia</label><input id="vaMeninggal" type="number" min="0" step="1" value="0"></div>
+  </div>
+  <div class="actions">
+    <button class="btn-primary" id="vaBtnTambah" type="button" onclick="vaTambahData()">+ Tambah Analisis</button>
+    <button class="btn-secondary" id="vaBtnBatal" type="button" onclick="vaBatalEdit()" style="display:none">Batal Edit</button>
+    <button class="btn-success" type="button" onclick="vaExportExcel()">Export Excel</button>
+    <button class="btn-secondary" type="button" onclick="vaDownloadTemplate()">Download Form</button>
+    <button class="btn-success" type="button" onclick="document.getElementById('vaExcelFile').click()">Upload Form</button>
+    <input id="vaExcelFile" type="file" accept=".xlsx,.xls" style="display:none" onchange="vaUploadExcel(event)">
+    <button class="btn-danger" type="button" onclick="vaHapusSemua()">Hapus Data</button>
+  </div>
+  <div class="va-cards" style="margin-top:14px">
+    <div class="card"><div class="title">Total Paparan Kendaraan-km</div><div class="value" id="vaTotalExposure">0</div></div>
+    <div class="card"><div class="title">Total Kecelakaan</div><div class="value" id="vaTotalAccidents">0</div></div>
+    <div class="card"><div class="title">Total Fatalitas</div><div class="value" id="vaTotalDeaths">0</div></div>
+    <div class="card"><div class="title">TK Gabungan</div><div class="value" id="vaTotalTK">—</div><div class="small">per 100 juta kendaraan-km</div></div>
+    <div class="card"><div class="title">TF Gabungan</div><div class="value" id="vaTotalTF">—</div><div class="small">per 100 juta kendaraan-km</div></div>
+  </div>
+  <div class="chart-box" style="margin-top:18px"><canvas id="vaChart"></canvas></div>
+  <h3 style="margin-top:22px">Rekomendasi Penanganan Keselamatan</h3>
+  <div class="note">Rekomendasi dihasilkan sebagai saran awal berdasarkan jumlah kecelakaan, fatalitas, dan tingkat kecelakaan relatif terhadap data yang dimasukkan. Rekomendasi bukan penetapan penyebab kecelakaan; verifikasi melalui audit keselamatan dan pemeriksaan lapangan tetap diperlukan.</div>
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;margin-bottom:10px">
+    <label for="vaRecPriorityFilter" style="font-weight:600;margin:0">Filter berdasarkan prioritas:</label>
+    <select id="vaRecPriorityFilter" onchange="vaRecPriorityFilter=this.value;vaRenderRecommendations()" style="min-width:220px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a">  
+      <option value="all">Semua Prioritas</option>
+      <option value="high">Prioritas Tinggi / Evaluasi</option>
+      <option value="medium">Perlu Tindakan</option>
+      <option value="low">Pemantauan</option>
+    </select>
+    <button type="button" class="btn-secondary" onclick="document.getElementById('vaRecPriorityFilter').value='all';vaRecPriorityFilter='all';vaRenderRecommendations()">Reset Filter</button>
+  </div>
+  <div id="vaRecommendations" style="margin-top:12px"><div class="hotspot-empty">Tambahkan data untuk menampilkan rekomendasi penanganan.</div></div>
+  <h3 style="margin-top:22px">Analisis Black Spot dan Black Section</h3>
+  <div class="note">Analisis ini menggabungkan data beberapa periode untuk lokasi yang sama, lalu menyusun prioritas berdasarkan tingkat kecelakaan (TK), tingkat fatalitas (TF), jumlah kejadian, dan paparan kendaraan-km. <b>Kandidat Black Spot</b> adalah titik, sedangkan <b>Kandidat Black Section</b> adalah ruas/segmen. Kategori ini merupakan penyaringan awal internal, bukan penetapan resmi atau ambang regulasi. Data volume, panjang, arah, dan periode harus sebanding serta tidak tumpang tindih.</div>
+  <div id="vaBlackSpot" class="table-wrap" style="margin-top:12px"><div class="hotspot-empty">Tambahkan data analisis volume untuk menyusun peringkat lokasi.</div></div>
+  <h3 style="margin-top:22px">Rekap Analisis Per Titik dan Per Ruas</h3>
+  <div id="vaTablePagination" class="table-pagination"></div>
+  <div class="table-wrap" id="vaTableWrap">
+    <div class="hotspot-empty">Belum ada data analisis volume kendaraan.</div>
+  </div>
+  <div class="small" style="margin-top:10px;line-height:1.5">
+    Rumus: paparan kendaraan = LHR × jumlah hari (untuk mode LHR), atau VLL bulanan (untuk mode VLL); paparan kendaraan-km = paparan kendaraan × panjang segmen; TK = kecelakaan × 100.000.000 ÷ paparan kendaraan-km; TF = meninggal × 100.000.000 ÷ paparan kendaraan-km.
+    <br>Nilai gabungan dihitung dari total kejadian dibagi total paparan, bukan rata-rata sederhana tingkat tiap baris. Pastikan data yang digabung tidak menghitung paparan yang sama dua kali.
+  </div>
+</div>
+
+<div class="panel sidebar-page" id="panel-rumus">
+<h2>8. Rumus Perhitungan</h2>
+<div class="note">
+<b>Exposure:</b> LHR × Jumlah Hari × Panjang Ruas<br>
+<b>Tingkat Kecelakaan:</b> Jumlah Kecelakaan × 100.000.000 ÷ Exposure<br>
+<b>Tingkat Fatalitas:</b> Jumlah Meninggal × 100.000.000 ÷ Exposure<br>
+<b>Fatalitas per 100 kecelakaan:</b> Meninggal ÷ Jumlah Kecelakaan × 100<br>
+<b>Kecelakaan per km:</b> Jumlah Kecelakaan ÷ Panjang Ruas
+</div>
+</div>
+</div>
+
+<script>
+let data=[];
+let chart=null;
+let titikRawan=[];
+let editingHotspotIndex=-1;
+let editingDataIndex=-1;
+
+const rupiahOrNumber=n=>new Intl.NumberFormat('id-ID',{maximumFractionDigits:2}).format(n||0);
+const num=id=>Number(document.getElementById(id).value)||0;
+
+function tambahData(){
+  const periode=document.getElementById('periode').value;
+  if(!periode){alert('Pilih periode terlebih dahulu.');return}
+  const row={
+    periode,
+    lhr:num('lhr'),
+    panjang:num('panjang'),
+    hari:num('hari'),
+    kecelakaan:num('kecelakaan'),
+    meninggal:num('meninggal'),
+    lukaBerat:num('lukaBerat'),
+    lukaRingan:num('lukaRingan')
+  };
+  if(row.lhr<=0||row.panjang<=0||row.hari<=0){alert('LHR, panjang ruas, dan jumlah hari harus lebih dari 0.');return}
+  if(editingDataIndex>=0){
+    data[editingDataIndex]=row;
+    data.sort((a,b)=>a.periode.localeCompare(b.periode));
+    editingDataIndex=-1;
+    const btn=document.getElementById('btnTambahData');
+    if(btn){btn.textContent='+ Tambah Data';btn.className='btn-primary';}
+    const cancel=document.getElementById('btnBatalEditData');
+    if(cancel)cancel.style.display='none';
+  }else{
+    data.push(row);
+    data.sort((a,b)=>a.periode.localeCompare(b.periode));
+  }
+  render();
+  ['periode','lhr','panjang','kecelakaan','meninggal','lukaBerat','lukaRingan'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('hari').value='30';
+}
+
+function calc(r){
+  const exposure=r.lhr*r.hari*r.panjang;
+  const tk=exposure? r.kecelakaan*100000000/exposure:0;
+  const tf=exposure? r.meninggal*100000000/exposure:0;
+  const fatal100=r.kecelakaan? r.meninggal*100/r.kecelakaan:0;
+  const accKm=r.panjang? r.kecelakaan/r.panjang:0;
+  return {exposure,tk,tf,fatal100,accKm};
+}
+
+
+
+let BPJT_TF_2024 = 0.1211;
+
+function updateBenchmarkTf(save=true){
+  const el=document.getElementById('benchmarkTfInput');
+  if(!el) return;
+
+  const raw=String(el.value).trim().replace(',','.');
+  const value=Number(raw);
+
+  if(!Number.isFinite(value) || value<0){
+    alert('Nilai benchmark harus berupa angka >= 0. Contoh: 0.1211');
+    el.value=BPJT_TF_2024.toFixed(4);
+    return;
+  }
+
+  BPJT_TF_2024=value;
+
+  // Update nilai benchmark yang tampil pada panel 3.
+  const textEl=document.getElementById('benchmarkTfText');
+  if(textEl) textEl.textContent=BPJT_TF_2024.toFixed(4);
+
+  // Refresh keterangan STATUS TINGKAT FATALITAS agar benchmark baru langsung terlihat.
+  updateStatus();
+
+  if(save){
+    localStorage.setItem('analisisKecelakaanFatalitasBenchmarkTf',String(BPJT_TF_2024));
+    alert('Benchmark Tingkat Fatalitas BPJT berhasil diperbarui menjadi '+BPJT_TF_2024.toFixed(4)+'.');
+  }
+}
+
+function loadBenchmarkTf(){
+  const el=document.getElementById('benchmarkTfInput');
+  if(!el) return;
+  const saved=localStorage.getItem('analisisKecelakaanFatalitasBenchmarkTf');
+  const value=saved!==null ? Number(saved) : 0.1211;
+  BPJT_TF_2024=(Number.isFinite(value) && value>=0)?value:0.1211;
+  el.value=BPJT_TF_2024.toFixed(4);
+  document.getElementById('benchmarkTfText').textContent=BPJT_TF_2024.toFixed(4);
+}
+const BPJT_TK_2024 = null; // Tidak dipakai sebagai ambang karena definisi/penyajian perlu diseragamkan dengan metodologi ruas.
+
+function percentile(values, p){
+  const a=values.filter(v=>Number.isFinite(v)).sort((x,y)=>x-y);
+  if(!a.length)return null;
+  if(a.length===1)return a[0];
+  const pos=(a.length-1)*p;
+  const lo=Math.floor(pos), hi=Math.ceil(pos);
+  return lo===hi?a[lo]:a[lo]+(a[hi]-a[lo])*(pos-lo);
+}
+function classifyByHistory(value, values){
+  const p50=percentile(values,.50), p75=percentile(values,.75), p90=percentile(values,.90);
+  if(p50===null)return {label:'Belum ada data',cls:'neutral',desc:'Belum cukup data historis.'};
+  if(value<=p50)return {label:'RELATIF AMAN',cls:'good',desc:`Nilai ${value.toFixed(2)} ≤ P50 historis (${p50.toFixed(2)}).`};
+  if(value<=p75)return {label:'PERLU PEMANTAUAN',cls:'watch',desc:`Nilai ${value.toFixed(2)} berada antara P50 (${p50.toFixed(2)}) dan P75 (${p75.toFixed(2)}).`};
+  if(value<=p90)return {label:'PERLU PERHATIAN',cls:'watch',desc:`Nilai ${value.toFixed(2)} berada antara P75 (${p75.toFixed(2)}) dan P90 (${p90.toFixed(2)}).`};
+  return {label:'PRIORITAS EVALUASI',cls:'alert',desc:`Nilai ${value.toFixed(2)} > P90 historis (${p90.toFixed(2)}).`};
+}
+function setStatus(id,label,cls,desc){
+  const el=document.getElementById(id);
+  el.innerHTML=`<span class="badge ${cls}">${label}</span>`;
+  document.getElementById(id+'Desc').textContent=desc;
+}
+
+function updateHistoricalMaximums(){
+  const tkEl=document.getElementById('maxTkHistoris');
+  const tfEl=document.getElementById('maxTfHistoris');
+  const tkPeriodEl=document.getElementById('maxTkHistorisPeriod');
+  const tfPeriodEl=document.getElementById('maxTfHistorisPeriod');
+  if(!tkEl || !tfEl || !tkPeriodEl || !tfPeriodEl) return;
+
+  if(!data.length){
+    tkEl.textContent='0,00';
+    tfEl.textContent='0,00';
+    tkPeriodEl.textContent='Belum ada data';
+    tfPeriodEl.textContent='Belum ada data';
+    return;
+  }
+
+  const hasil=data.map(r=>({periode:r.periode, ...calc(r)}));
+  const maxTk=Math.max(...hasil.map(x=>x.tk));
+  const maxTf=Math.max(...hasil.map(x=>x.tf));
+  const rowTk=hasil.find(x=>x.tk===maxTk);
+  const rowTf=hasil.find(x=>x.tf===maxTf);
+
+  tkEl.textContent=maxTk.toFixed(2);
+  tfEl.textContent=maxTf.toFixed(2);
+  tkPeriodEl.textContent=`Terjadi pada periode: ${rowTk.periode} • per 100 juta kendaraan-km`;
+  tfPeriodEl.textContent=`Terjadi pada periode: ${rowTf.periode} • per 100 juta kendaraan-km`;
+}
+
+function updateStatus(){
+  const benchmarkText=document.getElementById('benchmarkTfText');
+  if(benchmarkText) benchmarkText.textContent=BPJT_TF_2024.toFixed(4);
+  if(!data.length){
+    ['statusTk','statusTf','statusOverall'].forEach(id=>{
+      document.getElementById(id).innerHTML='<span class="badge neutral">BELUM ADA DATA</span>';
+    });
+    document.getElementById('statusTkDesc').textContent='Masukkan data bulanan untuk analisis.';
+    document.getElementById('statusTfDesc').textContent='Masukkan data bulanan untuk analisis.';
+    document.getElementById('statusOverallDesc').textContent='Status mengikuti indikator dengan risiko relatif lebih tinggi.';
+    return;
+  }
+  const metrics=data.map(r=>calc(r));
+  const tkVals=metrics.map(x=>x.tk), tfVals=metrics.map(x=>x.tf);
+  const latest=metrics[metrics.length-1];
+  const stTk=classifyByHistory(latest.tk,tkVals);
+  const stTf=classifyByHistory(latest.tf,tfVals);
+  setStatus('statusTk',stTk.label,stTk.cls,`Periode terakhir: ${data[data.length-1].periode}. ${stTk.desc}`);
+  setStatus('statusTf',stTf.label,stTf.cls,`Periode terakhir: ${data[data.length-1].periode}. ${stTf.desc} Benchmark BPJT 2024: ${BPJT_TF_2024.toFixed(4)}.`);
+  const rank={good:0,watch:1,alert:2};
+  const overall=rank[stTf.cls]>=rank[stTk.cls]?stTf:stTk;
+  setStatus('statusOverall',overall.label,overall.cls,
+    `Status keseluruhan mengikuti indikator dengan tingkat risiko relatif lebih tinggi pada periode ${data[data.length-1].periode}.`);
+}
+
+let dataTablePage=1;
+let dataTablePageSize=10;
+let hotspotTablePage=1;
+let hotspotTablePageSize=10;
+let hotspotFilter='all';
+
+function renderPagination(containerId,total,page,pageSize,onChange){
+  const el=document.getElementById(containerId);
+  if(!el)return;
+  const totalPages=pageSize==='all'?1:Math.max(1,Math.ceil(total/pageSize));
+  const current=Math.min(Math.max(1,page),totalPages);
+  const shownStart=total?((pageSize==='all'?0:(current-1)*pageSize)+1):0;
+  const shownEnd=total?(pageSize==='all'?total:Math.min(current*pageSize,total)):0;
+  el.innerHTML=`<div class="pagination-left">
+    <span>Tampilkan</span>
+    <select onchange="${onChange}Size(this.value)">
+      <option value="10" ${pageSize===10?'selected':''}>10 baris</option>
+      <option value="25" ${pageSize===25?'selected':''}>25 baris</option>
+      <option value="50" ${pageSize===50?'selected':''}>50 baris</option>
+      <option value="100" ${pageSize===100?'selected':''}>100 baris</option>
+      <option value="all" ${pageSize==='all'?'selected':''}>Semua</option>
+    </select>
+    <span>${shownStart}-${shownEnd} dari ${total} baris</span>
+  </div>
+  <div class="pagination-right">
+    <button type="button" onclick="${onChange}(${current-1})" ${current<=1?'disabled':''}>‹ Sebelumnya</button>
+    <span>Halaman ${current} / ${totalPages}</span>
+    <button type="button" onclick="${onChange}(${current+1})" ${current>=totalPages?'disabled':''}>Berikutnya ›</button>
+  </div>`;
+}
+
+function setDataTablePageSize(v){dataTablePageSize=v==='all'?'all':Number(v);dataTablePage=1;render();}
+function setDataTablePage(p){dataTablePage=Math.max(1,Number(p)||1);render();}
+function setHotspotTablePageSize(v){hotspotTablePageSize=v==='all'?'all':Number(v);hotspotTablePage=1;renderHotspot();}
+function setHotspotTablePage(p){hotspotTablePage=Math.max(1,Number(p)||1);renderHotspot();}
+
+function setHotspotFilter(v){
+  hotspotFilter=v||'all';
+  hotspotTablePage=1;
+  renderHotspot();
+}
+
+function getHotspotFilterData(){
+  return titikRawan.filter(r=>{
+    const ket=String(r.keterangan||'').toLowerCase();
+    const label=String(r.label||'').toLowerCase();
+    const lokasi=String(r.lokasi||'').toLowerCase();
+    const gabung=`${ket} ${label} ${lokasi}`;
+
+    // Tentukan terlebih dahulu apakah titik termasuk kategori fatalitas.
+    // Titik fatalitas tidak boleh ikut tampil pada filter "Titik Kecelakaan".
+    const isFatalitas =
+      gabung.includes('fatalitas') ||
+      gabung.includes('fatal') ||
+      Number(r.meninggal)>0;
+
+    if(hotspotFilter==='fatalitas'){
+      return isFatalitas;
+    }
+    if(hotspotFilter==='kecelakaan'){
+      return !isFatalitas &&
+             (gabung.includes('kecelakaan') || Number(r.kecelakaan)>0);
+    }
+    return true;
+  });
+}
+
+function render(){
+  const tbody=document.querySelector('#dataTable tbody');
+  tbody.innerHTML='';
+  const totalPages=dataTablePageSize==='all'?1:Math.max(1,Math.ceil(data.length/dataTablePageSize));
+  if(dataTablePage>totalPages)dataTablePage=totalPages;
+  const start=dataTablePageSize==='all'?0:(dataTablePage-1)*dataTablePageSize;
+  const end=dataTablePageSize==='all'?data.length:Math.min(start+dataTablePageSize,data.length);
+  data.slice(start,end).forEach((r,offset)=>{
+    const i=start+offset;
+    const c=calc(r);
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+    <td>${i+1}</td><td>${r.periode}</td><td>${rupiahOrNumber(r.lhr)}</td>
+    <td>${rupiahOrNumber(r.panjang)}</td><td>${r.hari}</td>
+    <td>${r.kecelakaan}</td><td>${r.meninggal}</td><td>${r.lukaBerat}</td><td>${r.lukaRingan}</td>
+    <td>${rupiahOrNumber(c.exposure)}</td><td>${c.tk.toFixed(2)}</td><td>${c.tf.toFixed(2)}</td>
+    <td>${c.fatal100.toFixed(2)}</td>
+    <td><button class="btn-primary" type="button" onclick="editData(${i})">✏️ Edit</button> <button class="btn-danger" type="button" onclick="hapusData(${i})">Hapus</button></td>`;
+    tbody.appendChild(tr);
+  });
+  if(data.length){
+    const total=data.reduce((a,r)=>({
+      exposure:a.exposure+calc(r).exposure,
+      acc:a.acc+r.kecelakaan, death:a.death+r.meninggal
+    }),{exposure:0,acc:0,death:0});
+    document.getElementById('exposure').textContent=rupiahOrNumber(total.exposure);
+    document.getElementById('tk').textContent=(total.acc*100000000/total.exposure).toFixed(2);
+    document.getElementById('tf').textContent=(total.death*100000000/total.exposure).toFixed(2);
+    document.getElementById('fatal100').textContent=(total.acc?total.death*100/total.acc:0).toFixed(2);
+    document.getElementById('accKm').textContent=(data.reduce((s,r)=>s+r.kecelakaan,0)/data.reduce((s,r)=>s+r.panjang,0)).toFixed(2);
+  }else{
+    ['exposure','tk','tf','fatal100','accKm'].forEach(id=>document.getElementById(id).textContent='0');
+  }
+  updateChart();
+  updateStatus();
+  updateHistoricalMaximums();
+  renderPagination('dataTablePagination',data.length,dataTablePage,dataTablePageSize,'setDataTablePage');
+}
+
+function editData(i){
+  const r=data[i];
+  if(!r)return;
+  editingDataIndex=i;
+  document.getElementById('periode').value=r.periode||'';
+  document.getElementById('lhr').value=r.lhr??'';
+  document.getElementById('panjang').value=r.panjang??'';
+  document.getElementById('hari').value=r.hari??'';
+  document.getElementById('kecelakaan').value=r.kecelakaan??'';
+  document.getElementById('meninggal').value=r.meninggal??'';
+  document.getElementById('lukaBerat').value=r.lukaBerat??'';
+  document.getElementById('lukaRingan').value=r.lukaRingan??'';
+  const btn=document.getElementById('btnTambahData');
+  if(btn){btn.textContent='💾 Simpan Perubahan';btn.className='btn-success';}
+  const cancel=document.getElementById('btnBatalEditData');
+  if(cancel)cancel.style.display='inline-block';
+  document.getElementById('periode').focus();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function batalEditData(){
+  editingDataIndex=-1;
+  const btn=document.getElementById('btnTambahData');
+  if(btn){btn.textContent='+ Tambah Data';btn.className='btn-primary';}
+  const cancel=document.getElementById('btnBatalEditData');
+  if(cancel)cancel.style.display='none';
+  ['periode','lhr','panjang','kecelakaan','meninggal','lukaBerat','lukaRingan'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('hari').value='30';
+}
+
+function hapusData(i){
+  if(editingDataIndex===i)batalEditData();
+  data.splice(i,1);
+  render();
+}
+function hapusSemua(){if(confirm('Hapus seluruh data?')){data=[];batalEditData();render()}}
+
+function updateChart(){
+  const ctx=document.getElementById('trendChart');
+  if(chart)chart.destroy();
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:data.map(r=>r.periode),
+      datasets:[
+        {label:'Tingkat Kecelakaan',data:data.map(r=>calc(r).tk),tension:.25},
+        {label:'Tingkat Fatalitas',data:data.map(r=>calc(r).tf),tension:.25}
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{y:{beginAtZero:true,title:{display:true,text:'Indeks per 100 juta kendaraan-km'}}}}
+  });
+}
+
+
+function tambahHotspot(){
+  const lokasi=document.getElementById('hotspotLokasi').value.trim();
+  const sta=document.getElementById('hotspotSta').value.trim();
+  const arah=document.getElementById('hotspotArah').value;
+  const latRaw=String(document.getElementById('hotspotLat').value).trim().replace(',','.');
+  const lngRaw=String(document.getElementById('hotspotLng').value).trim().replace(',','.');
+  const lat=latRaw===''?null:Number(latRaw);
+  const lng=lngRaw===''?null:Number(lngRaw);
+  const label=String(document.getElementById('hotspotLabel').value).trim();
+  const kecelakaan=Number(document.getElementById('hotspotKecelakaan').value)||0;
+  const meninggal=Number(document.getElementById('hotspotMeninggal').value)||0;
+  const lukaBerat=Number(document.getElementById('hotspotLukaBerat').value)||0;
+  const lukaRingan=Number(document.getElementById('hotspotLukaRingan').value)||0;
+  const keterangan=document.getElementById('hotspotKeterangan').value.trim();
+
+  if(!lokasi && !sta){
+    alert('Isi minimal Lokasi / Nama Titik atau STA / KM.');
+    return;
+  }
+
+  if((lat!==null || lng!==null) && (!Number.isFinite(lat) || !Number.isFinite(lng) || lat<-90 || lat>90 || lng<-180 || lng>180)){
+    alert('Latitude harus antara -90 sampai 90 dan Longitude antara -180 sampai 180.');
+    return;
+  }
+
+  titikRawan.push({lokasi,sta,arah,lat,lng,label,kecelakaan,meninggal,lukaBerat,lukaRingan,keterangan});
+  titikRawan.sort((a,b)=>(b.meninggal-a.meninggal)||(b.kecelakaan-a.kecelakaan));
+  renderHotspot();
+  saveHotspotOnly();
+
+  ['hotspotLokasi','hotspotSta','hotspotLat','hotspotLng','hotspotLabel','hotspotKeterangan'].forEach(id=>document.getElementById(id).value='');
+  ['hotspotKecelakaan','hotspotMeninggal','hotspotLukaBerat','hotspotLukaRingan'].forEach(id=>document.getElementById(id).value='0');
+  document.getElementById('hotspotArah').value='';
+}
+
+function renderHotspot(){
+  const wrap=document.getElementById('hotspotTableWrap');
+  if(!wrap)return;
+
+  const filteredData=getHotspotFilterData();
+  const filterInfo=document.getElementById('hotspotFilterInfo');
+  const filterLabels={all:'Semua titik',fatalitas:'Titik Fatalitas',kecelakaan:'Titik Kecelakaan'};
+  if(filterInfo) filterInfo.textContent=`${filterLabels[hotspotFilter]||'Semua titik'}: ${filteredData.length} titik`;
+
+  if(!filteredData.length){
+    wrap.innerHTML='<div class="hotspot-empty">Tidak ada titik yang sesuai dengan filter.</div>';
+    const pg=document.getElementById('hotspotPagination');
+    if(pg) pg.innerHTML='';
+    return;
+  }
+
+  let html=`<table>
+    <thead><tr>
+      <th>No</th><th>Lokasi / Nama Titik</th><th>STA / KM</th><th>Arah</th>
+      <th>Latitude</th><th>Longitude</th><th>Label Google Earth</th><th>Kecelakaan</th><th>Meninggal</th><th>Luka Berat</th><th>Luka Ringan</th>
+      <th>Keterangan</th><th>Aksi</th>
+    </tr></thead><tbody>`;
+
+  const totalPages=hotspotTablePageSize==='all'?1:Math.max(1,Math.ceil(filteredData.length/hotspotTablePageSize));
+  if(hotspotTablePage>totalPages)hotspotTablePage=totalPages;
+  const start=hotspotTablePageSize==='all'?0:(hotspotTablePage-1)*hotspotTablePageSize;
+  const end=hotspotTablePageSize==='all'?filteredData.length:Math.min(start+hotspotTablePageSize,filteredData.length);
+  filteredData.slice(start,end).forEach((r,offset)=>{
+    const originalIndex=titikRawan.indexOf(r);
+    const i=start+offset;
+    html+=`<tr>
+      <td>${i+1}</td>
+      <td>${escapeHtml(r.lokasi)}</td>
+      <td>${escapeHtml(r.sta)}</td>
+      <td>${escapeHtml(r.arah||'-')}</td>
+      <td>${r.lat!==null && r.lat!==undefined ? Number(r.lat).toFixed(6) : '-'}</td>
+      <td>${r.lng!==null && r.lng!==undefined ? Number(r.lng).toFixed(6) : '-'}</td>
+      <td>${escapeHtml(r.label || (r.lokasi||r.sta||'Titik Rawan'))}</td>
+      <td>${r.kecelakaan}</td>
+      <td>${r.meninggal}</td>
+      <td>${r.lukaBerat}</td>
+      <td>${r.lukaRingan}</td>
+      <td>${escapeHtml(r.keterangan||'-')}</td>
+      <td>
+        ${Number.isFinite(Number(r.lat)) && Number.isFinite(Number(r.lng))
+          ? `<button class="btn-success" type="button" onclick="bukaGoogleEarthSementara(${originalIndex})">🌍 Earth Online</button>`
+          : ''}
+        <button class="btn-primary" type="button" onclick="editHotspot(${originalIndex})">✏️ Edit</button>
+        <button class="btn-danger" type="button" onclick="hapusHotspot(${originalIndex})">Hapus</button>
+      </td>
+    </tr>`;
+  });
+
+  html+='</tbody></table>';
+  wrap.innerHTML=html;
+  renderPagination('hotspotPagination',filteredData.length,hotspotTablePage,hotspotTablePageSize,'setHotspotTablePage');
+}
+
+function escapeHtml(value){
+  return String(value??'').replace(/[&<>"']/g,m=>({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[m]));
+}
+
+function editHotspot(i){
+  const r=titikRawan[i];
+  if(!r)return;
+
+  editingHotspotIndex=i;
+
+  document.getElementById('hotspotLokasi').value=r.lokasi||'';
+  document.getElementById('hotspotSta').value=r.sta||'';
+  document.getElementById('hotspotArah').value=r.arah||'';
+  document.getElementById('hotspotLat').value=(r.lat!==null && r.lat!==undefined)?r.lat:'';
+  document.getElementById('hotspotLng').value=(r.lng!==null && r.lng!==undefined)?r.lng:'';
+  document.getElementById('hotspotLabel').value=r.label||'';
+  document.getElementById('hotspotKecelakaan').value=r.kecelakaan??0;
+  document.getElementById('hotspotMeninggal').value=r.meninggal??0;
+  document.getElementById('hotspotLukaBerat').value=r.lukaBerat??0;
+  document.getElementById('hotspotLukaRingan').value=r.lukaRingan??0;
+  document.getElementById('hotspotKeterangan').value=r.keterangan||'';
+
+  const btn=document.querySelector('button[onclick="tambahHotspot()"]');
+  if(btn){
+    btn.textContent='💾 Simpan Perubahan';
+    btn.setAttribute('onclick','simpanEditHotspot()');
+  }
+
+  // Tampilkan tombol batal edit jika belum ada.
+  let cancel=document.getElementById('cancelEditHotspot');
+  if(!cancel){
+    cancel=document.createElement('button');
+    cancel.id='cancelEditHotspot';
+    cancel.type='button';
+    cancel.className='btn-danger';
+    cancel.textContent='✕ Batal Edit';
+    cancel.onclick=batalEditHotspot;
+    const action=btn?.parentElement;
+    if(action) action.insertBefore(cancel, action.firstChild);
+  }
+
+  document.getElementById('hotspotLokasi').scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function simpanEditHotspot(){
+  if(editingHotspotIndex<0)return;
+
+  const lokasi=document.getElementById('hotspotLokasi').value.trim();
+  const sta=document.getElementById('hotspotSta').value.trim();
+  const arah=document.getElementById('hotspotArah').value;
+  const latRaw=String(document.getElementById('hotspotLat').value).trim().replace(',','.');
+  const lngRaw=String(document.getElementById('hotspotLng').value).trim().replace(',','.');
+  const lat=latRaw===''?null:Number(latRaw);
+  const lng=lngRaw===''?null:Number(lngRaw);
+  const label=String(document.getElementById('hotspotLabel').value).trim();
+  const kecelakaan=Number(document.getElementById('hotspotKecelakaan').value)||0;
+  const meninggal=Number(document.getElementById('hotspotMeninggal').value)||0;
+  const lukaBerat=Number(document.getElementById('hotspotLukaBerat').value)||0;
+  const lukaRingan=Number(document.getElementById('hotspotLukaRingan').value)||0;
+  const keterangan=document.getElementById('hotspotKeterangan').value.trim();
+
+  if(!lokasi && !sta){
+    alert('Isi minimal Lokasi / Nama Titik atau STA / KM.');
+    return;
+  }
+  if((lat!==null || lng!==null) && (!Number.isFinite(lat)||!Number.isFinite(lng)||lat<-90||lat>90||lng<-180||lng>180)){
+    alert('Latitude harus antara -90 sampai 90 dan Longitude antara -180 sampai 180.');
+    return;
+  }
+
+  titikRawan[editingHotspotIndex]={lokasi,sta,arah,lat,lng,label,kecelakaan,meninggal,lukaBerat,lukaRingan,keterangan};
+  titikRawan.sort((a,b)=>(b.meninggal-a.meninggal)||(b.kecelakaan-a.kecelakaan));
+  saveHotspotOnly();
+  renderHotspot();
+  batalEditHotspot(false);
+  alert('Data titik rawan berhasil diperbarui.');
+}
+
+function batalEditHotspot(showConfirm=true){
+  editingHotspotIndex=-1;
+  const btn=document.querySelector('button[onclick="simpanEditHotspot()"]');
+  if(btn){
+    btn.textContent='+ Tambah Titik Rawan';
+    btn.setAttribute('onclick','tambahHotspot()');
+  }
+  const cancel=document.getElementById('cancelEditHotspot');
+  if(cancel)cancel.remove();
+
+  ['hotspotLokasi','hotspotSta','hotspotLat','hotspotLng','hotspotLabel','hotspotKeterangan'].forEach(id=>{
+    const el=document.getElementById(id); if(el)el.value='';
+  });
+  ['hotspotKecelakaan','hotspotMeninggal','hotspotLukaBerat','hotspotLukaRingan'].forEach(id=>{
+    const el=document.getElementById(id); if(el)el.value='0';
+  });
+  const arah=document.getElementById('hotspotArah'); if(arah)arah.value='';
+}
+
+function hapusHotspot(i){
+  if(!confirm('Hapus titik rawan ini?'))return;
+  titikRawan.splice(i,1);
+  renderHotspot();
+  saveHotspotOnly();
+}
+
+function hapusSemuaHotspot(){
+  if(!titikRawan.length)return;
+  if(confirm('Hapus seluruh data lokasi titik rawan?')){
+    titikRawan=[];
+    renderHotspot();
+    saveHotspotOnly();
+  }
+}
+
+function saveHotspotOnly(){
+  localStorage.setItem('analisisKecelakaanFatalitasTitikRawan',JSON.stringify(titikRawan));
+}
+
+function loadHotspot(){
+  try{
+    const raw=localStorage.getItem('analisisKecelakaanFatalitasTitikRawan');
+    titikRawan=raw?JSON.parse(raw):[];
+    if(!Array.isArray(titikRawan))titikRawan=[];
+  }catch(e){
+    titikRawan=[];
+  }
+  renderHotspot();
+}
+
+
+function bukaGoogleEarthSemuaFilter(){
+  const filteredData=getHotspotFilterData();
+  const valid=filteredData.filter(r=>Number.isFinite(Number(r.lat))&&Number.isFinite(Number(r.lng)));
+
+  if(!valid.length){
+    alert('Tidak ada titik pada filter yang memiliki Latitude dan Longitude yang valid.');
+    return;
+  }
+
+  const filterName={all:'Semua Titik',fatalitas:'Titik Fatalitas',kecelakaan:'Titik Kecelakaan'}[hotspotFilter]||'Semua Titik';
+
+  // Google Earth Online hanya menerima satu lokasi melalui URL pencarian.
+  // Karena itu setiap titik valid dibuka pada tab Earth masing-masing.
+  // Semua window.open dilakukan langsung dalam event klik (tanpa setTimeout)
+  // agar tidak terkena pemblokiran popup karena pembukaan tertunda.
+  let opened=0;
+  let blocked=0;
+
+  valid.forEach((r,idx)=>{
+    const lat=Number(r.lat), lng=Number(r.lng);
+    const url=`https://earth.google.com/web/search/${encodeURIComponent(lat + ',' + lng)}/`;
+    const win=window.open(url,`googleEarthTitik_${Date.now()}_${idx}`);
+    if(win){
+      opened++;
+      try{win.focus();}catch(e){}
+    }else{
+      blocked++;
+    }
+  });
+
+  if(blocked>0){
+    alert(`${filterName}: ${opened} dari ${valid.length} titik berhasil dibuka di Google Earth Online. ${blocked} titik diblokir oleh browser. Silakan izinkan pop-up untuk halaman ini agar semua titik dapat dibuka.`);
+  }else{
+    alert(`${filterName}: ${valid.length} titik dibuka di Google Earth Online. Setiap titik tampil sebagai penanda sementara pada tab Earth masing-masing.`);
+  }
+}
+async function bukaGoogleEarthProBridge(){
+  const filteredData=getHotspotFilterData();
+  const mapped=filteredData.filter(r=>Number.isFinite(Number(r.lat))&&Number.isFinite(Number(r.lng)));
+
+  if(!mapped.length){
+    alert('Tidak ada titik pada filter yang memiliki Latitude dan Longitude yang valid.');
+    return;
+  }
+
+  const filterName={all:'Semua Titik',fatalitas:'Titik Fatalitas',kecelakaan:'Titik Kecelakaan'}[hotspotFilter]||'Semua Titik';
+  const title=`Titik Rawan Jalan Tol - ${filterName}`;
+  const kml=buildHotspotKML(mapped,title);
+
+  try{
+    const response=await fetch('http://127.0.0.1:8765/open-kml',{
+      method:'POST',
+      headers:{'Content-Type':'application/vnd.google-earth.kml+xml'},
+      body:kml
+    });
+
+    const result=await response.json();
+    if(!response.ok || !result.ok){
+      throw new Error(result.message || 'Bridge tidak dapat membuka Google Earth Pro.');
+    }
+
+    alert(`${filterName}: ${mapped.length} titik berhasil dikirim ke Google Earth Pro.`);
+  }catch(err){
+    alert('Google Earth Pro Bridge belum aktif.\n\nJalankan file "Start_GoogleEarthPro_Bridge.cmd" terlebih dahulu, lalu klik tombol ini kembali.\n\nJika Google Earth Pro terpasang di lokasi standar Windows, bridge akan mencari googleearth.exe secara otomatis.');
+  }
+}
+
+function downloadFilteredKMLPro(){
+  const filteredData=getHotspotFilterData();
+  const mapped=filteredData.filter(r=>Number.isFinite(Number(r.lat))&&Number.isFinite(Number(r.lng)));
+
+  if(!mapped.length){
+    alert('Tidak ada titik pada filter yang memiliki Latitude dan Longitude yang valid.');
+    return;
+  }
+
+  const filterName={all:'Semua_Titik',fatalitas:'Titik_Fatalitas',kecelakaan:'Titik_Kecelakaan'}[hotspotFilter]||'Semua_Titik';
+  const filename=`Titik_Rawan_${filterName}_Google_Earth_Pro.kml`;
+  const title=`Titik Rawan Jalan Tol - ${filterName.replaceAll('_',' ')}`;
+  const kml=buildHotspotKML(mapped,title);
+  const blob=new Blob([kml],{type:'application/vnd.google-earth.kml+xml;charset=UTF-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+
+  alert(`KML Google Earth Pro berhasil dibuat: ${mapped.length} titik sesuai filter.\n\nFile: ${filename}\n\nBuka file tersebut dengan Google Earth Pro melalui File > Open.`);
+}
+
+function buildHotspotKML(mapped, documentName='Titik Rawan Kecelakaan Jalan Tol'){
+  // KML paling kompatibel untuk Google Earth Pro:
+  // - Placemark memakai <name> langsung.
+  // - Tidak memakai ikon eksternal agar label tidak bergantung pada resource internet.
+  // - LabelStyle hanya mengatur label; ikon dibiarkan menggunakan ikon default Earth Pro.
+  // - Setiap titik dibuat sebagai Placemark mandiri di dalam Folder yang terbuka.
+  const valid=mapped.filter(r=>Number.isFinite(Number(r.lat))&&Number.isFinite(Number(r.lng)));
+  if(!valid.length) return '';
+
+  const coords=valid.map(r=>({lat:Number(r.lat),lng:Number(r.lng)}));
+  const centerLat=coords.reduce((a,b)=>a+b.lat,0)/coords.length;
+  const centerLng=coords.reduce((a,b)=>a+b.lng,0)/coords.length;
+  const toRad=v=>v*Math.PI/180;
+  const earthRadius=6371000;
+  let maxDistance=0;
+  coords.forEach(c=>{
+    const dLat=toRad(c.lat-centerLat);
+    const dLng=toRad(c.lng-centerLng);
+    const aa=Math.sin(dLat/2)**2 + Math.cos(toRad(centerLat))*Math.cos(toRad(c.lat))*Math.sin(dLng/2)**2;
+    const d=2*earthRadius*Math.atan2(Math.sqrt(aa),Math.sqrt(1-aa));
+    if(d>maxDistance) maxDistance=d;
+  });
+  const viewRange=Math.max(2500,maxDistance*4,5000);
+
+  const placemarks=valid.map((r,idx)=>{
+    const title=String(r.lokasi||r.sta||`Titik Rawan ${idx+1}`).trim();
+    const label=String(r.label||`Titik Rawan ${idx+1}`).trim();
+    const fatal=Number(r.meninggal)||0;
+    const kec=Number(r.kecelakaan)||0;
+    const desc=[
+      `<b>LABEL</b>: ${xmlEscape(label)}`,
+      `<b>LOKASI</b>: ${xmlEscape(title)}`,
+      `STA / KM: ${xmlEscape(r.sta||'-')}`,
+      `Arah: ${xmlEscape(r.arah||'-')}`,
+      `Jumlah Kecelakaan: ${kec}`,
+      `Meninggal: ${fatal}`,
+      `Luka Berat: ${r.lukaBerat||0}`,
+      `Luka Ringan: ${r.lukaRingan||0}`,
+      `Latitude: ${Number(r.lat).toFixed(6)}`,
+      `Longitude: ${Number(r.lng).toFixed(6)}`,
+      `Keterangan: ${xmlEscape(r.keterangan||'-')}`
+    ].join('<br>');
+
+    return `<Placemark>
+  <name>${xmlEscape(label)}</name>
+  <visibility>1</visibility>
+  <Style>
+    <LabelStyle>
+      <color>ff00ffff</color>
+      <colorMode>normal</colorMode>
+      <scale>2.00</scale>
+    </LabelStyle>
+  </Style>
+  <description><![CDATA[${desc}]]></description>
+  <ExtendedData>
+    <Data name="Label_Google_Earth"><value>${xmlEscape(label)}</value></Data>
+    <Data name="Lokasi"><value>${xmlEscape(title)}</value></Data>
+    <Data name="STA_KM"><value>${xmlEscape(r.sta||'')}</value></Data>
+    <Data name="Arah"><value>${xmlEscape(r.arah||'')}</value></Data>
+    <Data name="Jumlah_Kecelakaan"><value>${kec}</value></Data>
+    <Data name="Meninggal"><value>${fatal}</value></Data>
+    <Data name="Luka_Berat"><value>${r.lukaBerat||0}</value></Data>
+    <Data name="Luka_Ringan"><value>${r.lukaRingan||0}</value></Data>
+    <Data name="Keterangan"><value>${xmlEscape(r.keterangan||'')}</value></Data>
+  </ExtendedData>
+  <Point>
+    <altitudeMode>clampToGround</altitudeMode>
+    <coordinates>${Number(r.lng)},${Number(r.lat)},0</coordinates>
+  </Point>
+</Placemark>`;
+  }).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>${xmlEscape(documentName)}</name>
+  <visibility>1</visibility>
+  <open>1</open>
+  <LookAt>
+    <longitude>${centerLng}</longitude>
+    <latitude>${centerLat}</latitude>
+    <altitude>0</altitude>
+    <heading>0</heading>
+    <tilt>0</tilt>
+    <range>${viewRange}</range>
+    <altitudeMode>clampToGround</altitudeMode>
+  </LookAt>
+  <Folder>
+    <name>${xmlEscape(documentName)}</name>
+    <visibility>1</visibility>
+    <open>1</open>
+    ${placemarks}
+  </Folder>
+</Document>
+</kml>`;
+}
+
+function bukaGoogleEarthSementara(i){
+  const r=titikRawan[i];
+  if(!r)return;
+
+  const lat=Number(r.lat), lng=Number(r.lng);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)){
+    alert('Titik ini belum memiliki Latitude dan Longitude yang valid.');
+    return;
+  }
+
+  // Google Earth Web mendukung pencarian koordinat melalui URL.
+  // Hasil pencarian menampilkan pin/penanda sementara pada lokasi tersebut
+  // tanpa membuat atau mengunduh file KML.
+  const url=`https://earth.google.com/web/search/${encodeURIComponent(lat + ',' + lng)}/`;
+  window.open(url,'_blank','noopener,noreferrer');
+}
+
+function downloadHotspotKMLByIndex(i){
+  const r=titikRawan[i];
+  if(!r)return;
+
+  const lat=Number(r.lat), lng=Number(r.lng);
+  if(!Number.isFinite(lat)||!Number.isFinite(lng)){
+    alert('Titik ini belum memiliki Latitude dan Longitude yang valid.');
+    return;
+  }
+
+  const title=r.lokasi||r.sta||'Titik Rawan';
+  const label=r.label || [
+    title,
+    r.sta ? `KM ${r.sta}` : '',
+    r.arah || '',
+    `Kec: ${r.kecelakaan||0}`,
+    `MD: ${r.meninggal||0}`
+  ].filter(Boolean).join(' | ');
+
+  const styleId=kmlStyleId(r);
+  const styles=`
+<Style id="fatal">
+  <IconStyle><scale>1.4</scale><Icon><href>https://maps.google.com/mapfiles/kml/paddle/red-circle.png</href></Icon></IconStyle>
+  <LabelStyle><scale>1.15</scale></LabelStyle>
+</Style>
+<Style id="high">
+  <IconStyle><scale>1.3</scale><Icon><href>https://maps.google.com/mapfiles/kml/paddle/orange-circle.png</href></Icon></IconStyle>
+  <LabelStyle><scale>1.10</scale></LabelStyle>
+</Style>
+<Style id="medium">
+  <IconStyle><scale>1.2</scale><Icon><href>https://maps.google.com/mapfiles/kml/paddle/ylw-circle.png</href></Icon></IconStyle>
+  <LabelStyle><scale>1.05</scale></LabelStyle>
+</Style>
+<Style id="low">
+  <IconStyle><scale>1.1</scale><Icon><href>https://maps.google.com/mapfiles/kml/paddle/grn-circle.png</href></Icon></IconStyle>
+  <LabelStyle><scale>1.0</scale></LabelStyle>
+</Style>`;
+
+  const desc=[
+    `<b>LOKASI TITIK RAWAN</b>: ${xmlEscape(title)}`,
+    `STA / KM: ${xmlEscape(r.sta||'-')}`,
+    `Arah: ${xmlEscape(r.arah||'-')}`,
+    `Jumlah Kecelakaan: ${r.kecelakaan||0}`,
+    `Meninggal: ${r.meninggal||0}`,
+    `Luka Berat: ${r.lukaBerat||0}`,
+    `Luka Ringan: ${r.lukaRingan||0}`,
+    `Latitude: ${lat.toFixed(6)}`,
+    `Longitude: ${lng.toFixed(6)}`,
+    `Keterangan: ${xmlEscape(r.keterangan||'-')}`
+  ].join('<br>');
+
+  const kml=`<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>${xmlEscape(label)}</name>
+${styles}
+<Placemark>
+<name>${xmlEscape(label)}</name>
+<styleUrl>#${styleId}</styleUrl>
+<description><![CDATA[${desc}]]></description>
+<ExtendedData>
+  <Data name="Label_Google_Earth"><value>${xmlEscape(label)}</value></Data>
+  <Data name="Lokasi"><value>${xmlEscape(title)}</value></Data>
+  <Data name="STA_KM"><value>${xmlEscape(r.sta||'')}</value></Data>
+  <Data name="Arah"><value>${xmlEscape(r.arah||'')}</value></Data>
+  <Data name="Jumlah_Kecelakaan"><value>${r.kecelakaan||0}</value></Data>
+  <Data name="Meninggal"><value>${r.meninggal||0}</value></Data>
+  <Data name="Luka_Berat"><value>${r.lukaBerat||0}</value></Data>
+  <Data name="Luka_Ringan"><value>${r.lukaRingan||0}</value></Data>
+  <Data name="Keterangan"><value>${xmlEscape(r.keterangan||'')}</value></Data>
+</ExtendedData>
+<Point><coordinates>${lng},${lat},0</coordinates></Point>
+</Placemark>
+</Document>
+</kml>`;
+
+  const blob=new Blob([kml],{type:'application/vnd.google-earth.kml+xml'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`Titik_Rawan_${String(r.sta||i+1).replace(/[^\w+-]/g,'_')}.kml`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function bukaGoogleEarth(lat,lng){
+  const url=`https://earth.google.com/web/@${lat},${lng},500a,1000d,35y,0h,0t,0r`;
+  window.open(url,'_blank','noopener,noreferrer');
+}
+
+function xmlEscape(value){
+  return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&apos;');
+}
+
+function kmlStyleId(r){
+  if(Number(r.meninggal)>0)return 'fatal';
+  if(Number(r.kecelakaan)>=10)return 'high';
+  if(Number(r.kecelakaan)>=5)return 'medium';
+  return 'low';
+}
+
+function downloadHotspotKML(){
+  const mapped=titikRawan.filter(r=>Number.isFinite(Number(r.lat))&&Number.isFinite(Number(r.lng)));
+  if(!mapped.length){
+    alert('Belum ada titik rawan dengan Latitude dan Longitude yang valid.');
+    return;
+  }
+
+  const styles=`
+<Style id="fatal">
+  <IconStyle><scale>1.4</scale><Icon><href>https://maps.google.com/mapfiles/kml/paddle/red-circle.png</href></Icon></IconStyle>
+  <LabelStyle><scale>1.15</scale></LabelStyle>
+</Style>
+<Style id="high">
+  <IconStyle><scale>1.3</scale><Icon><href>https://maps.google.com/mapfiles/kml/paddle/orange-circle.png</href></Icon></IconStyle>
+  <LabelStyle><scale>1.10</scale></LabelStyle>
+</Style>
+<Style id="medium">
+  <IconStyle><scale>1.2</scale><Icon><href>https://maps.google.com/mapfiles/kml/paddle/ylw-circle.png</href></Icon></IconStyle>
+  <LabelStyle><scale>1.05</scale></LabelStyle>
+</Style>
+<Style id="low">
+  <IconStyle><scale>1.1</scale><Icon><href>https://maps.google.com/mapfiles/kml/paddle/grn-circle.png</href></Icon></IconStyle>
+  <LabelStyle><scale>1.0</scale></LabelStyle>
+</Style>`;
+
+  const placemarks=mapped.map(r=>{
+    const title=r.lokasi||r.sta||'Titik Rawan';
+
+    // Label yang tampil langsung di peta Google Earth.
+    const labelParts=[
+      title,
+      r.sta ? `KM ${r.sta}` : '',
+      r.arah ? r.arah : '',
+      `Kec: ${r.kecelakaan||0}`,
+      `MD: ${r.meninggal||0}`
+    ].filter(Boolean);
+    const label=r.label || labelParts.join(' | ');
+
+    const desc=[
+      `<b>LOKASI TITIK RAWAN</b>: ${xmlEscape(title)}`,
+      `STA / KM: ${xmlEscape(r.sta||'-')}`,
+      `Arah: ${xmlEscape(r.arah||'-')}`,
+      `Jumlah Kecelakaan: ${r.kecelakaan||0}`,
+      `Meninggal: ${r.meninggal||0}`,
+      `Luka Berat: ${r.lukaBerat||0}`,
+      `Luka Ringan: ${r.lukaRingan||0}`,
+      `Latitude: ${Number(r.lat).toFixed(6)}`,
+      `Longitude: ${Number(r.lng).toFixed(6)}`,
+      `Keterangan: ${xmlEscape(r.keterangan||'-')}`
+    ].join('<br>');
+
+    return `<Placemark>
+<name>${xmlEscape(label)}</name>
+<styleUrl>#${kmlStyleId(r)}</styleUrl>
+<description><![CDATA[${desc}]]></description>
+<ExtendedData>
+  <Data name="Label_Google_Earth"><value>${xmlEscape(label)}</value></Data>
+  <Data name="Lokasi"><value>${xmlEscape(title)}</value></Data>
+  <Data name="STA_KM"><value>${xmlEscape(r.sta||'')}</value></Data>
+  <Data name="Arah"><value>${xmlEscape(r.arah||'')}</value></Data>
+  <Data name="Jumlah_Kecelakaan"><value>${r.kecelakaan||0}</value></Data>
+  <Data name="Meninggal"><value>${r.meninggal||0}</value></Data>
+  <Data name="Luka_Berat"><value>${r.lukaBerat||0}</value></Data>
+  <Data name="Luka_Ringan"><value>${r.lukaRingan||0}</value></Data>
+  <Data name="Keterangan"><value>${xmlEscape(r.keterangan||'')}</value></Data>
+</ExtendedData>
+<Point><coordinates>${Number(r.lng)},${Number(r.lat)},0</coordinates></Point>
+</Placemark>`;
+  }).join('\n');
+
+  const kml=`<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+<name>Titik Rawan Kecelakaan Jalan Tol</name>
+${styles}
+${placemarks}
+</Document>
+</kml>`;
+
+  const blob=new Blob([kml],{type:'application/vnd.google-earth.kml+xml'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='Titik_Rawan_Kecelakaan_Jalan_Tol.kml';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+
+function downloadHotspotTemplate(){
+  const rows=[{
+    Lokasi:'KM 15+500',
+    STA_KM:'15+500',
+    Arah:'Demak',
+    Latitude:-6.900000,
+    Longitude:110.500000,
+    Label_Google_Earth:'BLACKSPOT KM 15+500',
+    Jumlah_Kecelakaan:5,
+    Meninggal:1,
+    Luka_Berat:2,
+    Luka_Ringan:3,
+    Keterangan:'Contoh titik rawan'
+  }];
+
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Format Titik Rawan');
+  XLSX.writeFile(wb,'Format_Titik_Rawan_Kecelakaan.xlsx');
+}
+
+function uploadHotspotExcel(e){
+  const file=e.target.files[0];
+  if(!file)return;
+
+  const reader=new FileReader();
+  reader.onload=function(evt){
+    try{
+      const wb=XLSX.read(evt.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:''});
+      let imported=0;
+
+      rows.forEach(x=>{
+        const lokasi=String(x.Lokasi??x['Lokasi / Nama Titik']??x.lokasi??'').trim();
+        const sta=String(x.STA_KM??x['STA / KM']??x.sta??'').trim();
+        const arah=String(x.Arah??x.arah??'').trim();
+
+        const latRaw=String(x.Latitude??x.latitude??'').trim().replace(',','.');
+        const lngRaw=String(x.Longitude??x.longitude??'').trim().replace(',','.');
+        const lat=latRaw===''?null:Number(latRaw);
+        const lng=lngRaw===''?null:Number(lngRaw);
+        const label=String(x.Label_Google_Earth??x['Label Google Earth']??x.Label??'').trim();
+
+        const kecelakaan=Number(x.Jumlah_Kecelakaan??x.Kecelakaan??x.kecelakaan??0)||0;
+        const meninggal=Number(x.Meninggal??x.meninggal??0)||0;
+        const lukaBerat=Number(x.Luka_Berat??x['Luka Berat']??x.lukaBerat??0)||0;
+        const lukaRingan=Number(x.Luka_Ringan??x['Luka Ringan']??x.lukaRingan??0)||0;
+        const keterangan=String(x.Keterangan??x.keterangan??'').trim();
+
+        if(!lokasi && !sta)return;
+
+        if(lat!==null && (!Number.isFinite(lat)||lat<-90||lat>90))return;
+        if(lng!==null && (!Number.isFinite(lng)||lng<-180||lng>180))return;
+
+        titikRawan.push({
+          lokasi,sta,arah,lat,lng,label,
+          kecelakaan,meninggal,lukaBerat,lukaRingan,keterangan
+        });
+        imported++;
+      });
+
+      titikRawan.sort((a,b)=>(b.meninggal-a.meninggal)||(b.kecelakaan-a.kecelakaan));
+      renderHotspot();
+      saveHotspotOnly();
+      alert(imported+' data titik rawan berhasil diimpor.');
+    }catch(err){
+      alert('File Excel titik rawan tidak dapat dibaca: '+err.message);
+    }
+    e.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function downloadHotspotExcel(){
+  if(!titikRawan.length){
+    alert('Belum ada data titik rawan untuk diunduh.');
+    return;
+  }
+  const rows=titikRawan.map((r,i)=>({
+    No:i+1,
+    Lokasi:r.lokasi,
+    STA_KM:r.sta,
+    Arah:r.arah,
+    Latitude:r.lat,
+    Longitude:r.lng,
+    Label_Google_Earth:r.label || '',
+    Jumlah_Kecelakaan:r.kecelakaan,
+    Meninggal:r.meninggal,
+    Luka_Berat:r.lukaBerat,
+    Luka_Ringan:r.lukaRingan,
+    Keterangan:r.keterangan
+  }));
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Titik Rawan');
+  XLSX.writeFile(wb,'Data_Titik_Rawan_Kecelakaan.xlsx');
+}
+
+function downloadTemplate(){
+  const rows=[{
+    Periode:'2026-01',LHR:30000,Panjang_Ruas_km:20,Jumlah_Hari:31,
+    Jumlah_Kecelakaan:4,Meninggal:1,Luka_Berat:2,Luka_Ringan:5
+  }];
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Input Data');
+  XLSX.writeFile(wb,'Template_Analisis_Kecelakaan_Fatalitas.xlsx');
+}
+
+function uploadExcel(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(evt){
+    try{
+      const wb=XLSX.read(evt.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:0});
+      let imported=0;
+      rows.forEach(x=>{
+        const periode=String(x.Periode||x.periode||'');
+        const r={
+          periode:periode.substring(0,7),
+          lhr:Number(x.LHR||x.lhr||0),
+          panjang:Number(x.Panjang_Ruas_km||x['Panjang (km)']||x.panjang||0),
+          hari:Number(x.Jumlah_Hari||x.hari||0),
+          kecelakaan:Number(x.Jumlah_Kecelakaan||x.Kecelakaan||x.kecelakaan||0),
+          meninggal:Number(x.Meninggal||x.meninggal||0),
+          lukaBerat:Number(x.Luka_Berat||x['Luka Berat']||x.lukaBerat||0),
+          lukaRingan:Number(x.Luka_Ringan||x['Luka Ringan']||x.lukaRingan||0)
+        };
+        if(r.periode&&r.lhr>0&&r.panjang>0&&r.hari>0){data.push(r);imported++}
+      });
+      data.sort((a,b)=>a.periode.localeCompare(b.periode));
+      render();
+      alert(imported+' data berhasil diimpor.');
+    }catch(err){alert('File Excel tidak dapat dibaca: '+err.message)}
+    e.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function downloadHasil(){
+  if(!data.length){alert('Belum ada data untuk diunduh.');return}
+  const rows=data.map(r=>{
+    const c=calc(r);
+    return {
+      Periode:r.periode,LHR:r.lhr,Panjang_Ruas_km:r.panjang,Jumlah_Hari:r.hari,
+      Jumlah_Kecelakaan:r.kecelakaan,Meninggal:r.meninggal,Luka_Berat:r.lukaBerat,Luka_Ringan:r.lukaRingan,
+      Exposure_Kendaraan_km:c.exposure,
+      Tingkat_Kecelakaan_per_100_Juta:c.tk,
+      Tingkat_Fatalitas_per_100_Juta:c.tf,
+      Fatalitas_per_100_Kecelakaan:c.fatal100,
+      Kecelakaan_per_km:c.accKm
+    }
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Hasil Analisis');
+  XLSX.writeFile(wb,'Hasil_Analisis_Kecelakaan_Fatalitas.xlsx');
+}
+
+function saveLocal(){
+  localStorage.setItem('analisisKecelakaanFatalitasJalanTol',JSON.stringify(data));
+  saveHotspotOnly();
+  alert('Data berhasil disimpan di Local Storage browser ini.');
+}
+function loadLocal(){
+  const raw=localStorage.getItem('analisisKecelakaanFatalitasJalanTol');
+  if(!raw){alert('Belum ada data tersimpan di Local Storage.');return}
+  try{
+    const saved=JSON.parse(raw);
+    if(!Array.isArray(saved))throw new Error('Format data tidak valid');
+    data=saved;
+    data.sort((a,b)=>a.periode.localeCompare(b.periode));
+    render();
+    loadHotspot();
+    alert(data.length+' data berhasil dimuat dari Local Storage.');
+  }catch(e){alert('Data Local Storage tidak dapat dimuat: '+e.message)}
+}
+function clearLocal(){
+  if(confirm('Hapus data yang tersimpan di Local Storage?')){
+    localStorage.removeItem('analisisKecelakaanFatalitasJalanTol');
+    localStorage.removeItem('analisisKecelakaanFatalitasTitikRawan');
+    titikRawan=[];
+    renderHotspot();
+    localStorage.removeItem('analisisKecelakaanFatalitasBenchmarkTf');
+    BPJT_TF_2024=0.1211;
+    const b=document.getElementById('benchmarkTfInput'); if(b)b.value='0.1211';
+    alert('Data Local Storage telah dihapus.');
+  }
+}
+
+
+function autoLoadLocalStorage(){
+  const raw=localStorage.getItem('analisisKecelakaanFatalitasJalanTol');
+  if(!raw) return;
+  try{
+    const saved=JSON.parse(raw);
+    if(Array.isArray(saved)){
+      data=saved;
+      data.sort((a,b)=>String(a.periode).localeCompare(String(b.periode)));
+      render();
+    }
+  }catch(e){
+    console.warn('Local Storage tidak dapat dimuat otomatis:', e);
+  }
+}
+
+
+// Modul tambahan analisis kecelakaan berdasarkan paparan volume kendaraan.
+// Sengaja menggunakan state, fungsi, dan Local Storage tersendiri agar tidak mengubah modul lama.
+let vaData=[];
+let vaEditIndex=-1;
+let vaChart=null;
+const VA_STORAGE_KEY='analisisKecelakaanVolumeExposure_v1';
+function vaNum(id){const n=Number(document.getElementById(id).value);return Number.isFinite(n)?n:0}
+function vaFmt(n,d=2){return new Intl.NumberFormat('id-ID',{maximumFractionDigits:d}).format(Number(n)||0)}
+function vaUpdateModeLabel(){
+  const mode=document.getElementById('vaMode').value;
+  document.getElementById('vaVolumeLabel').textContent=mode==='lhr'?'LHR (kendaraan/hari)':'VLL bulanan (kendaraan/bulan)';
+  document.getElementById('vaHari').disabled=mode==='vll';
+  document.getElementById('vaHari').title=mode==='vll'?'Tidak digunakan karena VLL sudah berupa total bulanan':'Digunakan untuk mengonversi LHR menjadi total kendaraan periode';
+}
+function vaCalc(r){
+  const totalKendaraan=r.mode==='lhr' ? r.volume*r.hari : r.volume;
+  const exposure=totalKendaraan*r.panjang;
+  return {
+    totalKendaraan, exposure,
+    tk:exposure>0?r.kecelakaan*100000000/exposure:null,
+    tf:exposure>0?r.meninggal*100000000/exposure:null
+  };
+}
+function vaResetForm(){
+  ['vaPeriode','vaLokasi','vaVolume','vaPanjang'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('vaJenis').value='Titik';
+  document.getElementById('vaArah').value='';
+  document.getElementById('vaMode').value='lhr';
+  document.getElementById('vaHari').value='30';
+  document.getElementById('vaKecelakaan').value='0';
+  document.getElementById('vaMeninggal').value='0';
+  vaUpdateModeLabel();
+}
+function vaTambahData(){
+  const row={
+    periode:document.getElementById('vaPeriode').value,
+    jenis:document.getElementById('vaJenis').value,
+    lokasi:document.getElementById('vaLokasi').value.trim(),
+    arah:document.getElementById('vaArah').value,
+    mode:document.getElementById('vaMode').value,
+    volume:vaNum('vaVolume'),
+    hari:vaNum('vaHari'),
+    panjang:vaNum('vaPanjang'),
+    kecelakaan:vaNum('vaKecelakaan'),
+    meninggal:vaNum('vaMeninggal')
+  };
+  if(!row.periode||!row.lokasi){alert('Periode dan nama titik/ruas wajib diisi.');return}
+  if(row.volume<=0||row.panjang<=0){alert('Volume kendaraan dan panjang segmen harus lebih dari 0.');return}
+  if(row.mode==='lhr'&&(!Number.isInteger(row.hari)||row.hari<1||row.hari>31)){alert('Jumlah hari harus antara 1 sampai 31 untuk mode LHR.');return}
+  if(row.kecelakaan<0||row.meninggal<0||row.kecelakaan%1!==0||row.meninggal%1!==0){alert('Jumlah kecelakaan dan meninggal harus bilangan bulat non-negatif.');return}
+  if(row.meninggal>0&&row.kecelakaan===0){alert('Jumlah meninggal tidak dapat lebih besar dari nol jika jumlah kecelakaan nol.');return}
+  if(vaEditIndex>=0){vaData[vaEditIndex]=row;vaEditIndex=-1}else{vaData.push(row)}
+  vaData.sort((a,b)=>a.periode.localeCompare(b.periode)||a.jenis.localeCompare(b.jenis)||a.lokasi.localeCompare(b.lokasi));
+  vaSave();vaRender();vaResetForm();
+  document.getElementById('vaBtnTambah').textContent='+ Tambah Analisis';
+  document.getElementById('vaBtnBatal').style.display='none';
+}
+function vaEdit(i){
+  const r=vaData[i];if(!r)return;
+  vaEditIndex=i;
+  document.getElementById('vaPeriode').value=r.periode;
+  document.getElementById('vaJenis').value=r.jenis;
+  document.getElementById('vaLokasi').value=r.lokasi;
+  document.getElementById('vaArah').value=r.arah||'';
+  document.getElementById('vaMode').value=r.mode;
+  document.getElementById('vaVolume').value=r.volume;
+  document.getElementById('vaHari').value=r.hari;
+  document.getElementById('vaPanjang').value=r.panjang;
+  document.getElementById('vaKecelakaan').value=r.kecelakaan;
+  document.getElementById('vaMeninggal').value=r.meninggal;
+  vaUpdateModeLabel();
+  document.getElementById('vaBtnTambah').textContent='Simpan Perubahan';
+  document.getElementById('vaBtnBatal').style.display='inline-block';
+  document.getElementById('vaPeriode').scrollIntoView({behavior:'smooth',block:'center'});
+}
+function vaBatalEdit(){
+  vaEditIndex=-1;vaResetForm();
+  document.getElementById('vaBtnTambah').textContent='+ Tambah Analisis';
+  document.getElementById('vaBtnBatal').style.display='none';
+}
+function vaHapus(i){
+  if(!confirm('Hapus baris analisis ini?'))return;
+  vaData.splice(i,1);vaSave();vaRender();
+}
+function vaHapusSemua(){
+  if(!vaData.length)return;
+  if(!confirm('Hapus seluruh data pada modul analisis volume? Data pada panel lain tidak dihapus.'))return;
+  vaData=[];vaEditIndex=-1;vaSave();vaRender();vaBatalEdit();
+}
+function vaSave(){try{localStorage.setItem(VA_STORAGE_KEY,JSON.stringify(vaData))}catch(e){console.warn('Gagal menyimpan modul analisis volume:',e)}}
+function vaLoad(){
+  try{const raw=localStorage.getItem(VA_STORAGE_KEY);const parsed=raw?JSON.parse(raw):[];vaData=Array.isArray(parsed)?parsed:[]}catch(e){vaData=[]}
+  vaRender();
+}
+let vaTablePage=1;
+let vaTablePageSize=10;
+function setVaTablePageSize(v){vaTablePageSize=v==='all'?'all':Number(v);vaTablePage=1;vaRender();}
+function setVaTablePage(p){vaTablePage=Math.max(1,Number(p)||1);vaRender();}
+
+function vaRender(){
+  const wrap=document.getElementById('vaTableWrap');if(!wrap)return;
+  const sums=vaData.reduce((a,r)=>{const c=vaCalc(r);a.exposure+=c.exposure;a.acc+=r.kecelakaan;a.death+=r.meninggal;return a},{exposure:0,acc:0,death:0});
+  document.getElementById('vaTotalExposure').textContent=vaFmt(sums.exposure);
+  document.getElementById('vaTotalAccidents').textContent=vaFmt(sums.acc,0);
+  document.getElementById('vaTotalDeaths').textContent=vaFmt(sums.death,0);
+  document.getElementById('vaTotalTK').textContent=sums.exposure>0?vaFmt(sums.acc*1e8/sums.exposure):'—';
+  document.getElementById('vaTotalTF').textContent=sums.exposure>0?vaFmt(sums.death*1e8/sums.exposure):'—';
+  if(!vaData.length){wrap.innerHTML='<div class="hotspot-empty">Belum ada data analisis volume kendaraan.</div>';document.getElementById('vaTablePagination').innerHTML=''}
+  else{
+    const totalPages=vaTablePageSize==='all'?1:Math.max(1,Math.ceil(vaData.length/vaTablePageSize));
+    if(vaTablePage>totalPages)vaTablePage=totalPages;
+    const start=vaTablePageSize==='all'?0:(vaTablePage-1)*vaTablePageSize;
+    const end=vaTablePageSize==='all'?vaData.length:Math.min(start+vaTablePageSize,vaData.length);
+    let html='<table><thead><tr><th>No</th><th>Periode</th><th>Cakupan</th><th>Nama Titik/Ruas</th><th>Arah</th><th>Sumber Volume</th><th>Volume Input</th><th>Hari</th><th>Panjang Segmen (km)</th><th>Total Kendaraan</th><th>Kendaraan-km</th><th>Kecelakaan</th><th>Meninggal</th><th>TK / 100 juta kend-km</th><th>TF / 100 juta kend-km</th><th>Aksi</th></tr></thead><tbody>';
+    vaData.slice(start,end).forEach((r,offset)=>{const i=start+offset;const c=vaCalc(r);html+=`<tr><td>${i+1}</td><td>${escapeHtml(r.periode)}</td><td>${escapeHtml(r.jenis)}</td><td>${escapeHtml(r.lokasi)}</td><td>${escapeHtml(r.arah||'-')}</td><td>${r.mode==='lhr'?'LHR harian':'VLL bulanan'}</td><td>${vaFmt(r.volume,0)}</td><td>${r.mode==='lhr'?r.hari:'-'}</td><td>${vaFmt(r.panjang,3)}</td><td>${vaFmt(c.totalKendaraan,0)}</td><td>${vaFmt(c.exposure,0)}</td><td>${r.kecelakaan}</td><td>${r.meninggal}</td><td>${c.tk===null?'—':vaFmt(c.tk)}</td><td>${c.tf===null?'—':vaFmt(c.tf)}</td><td><button class="btn-primary" type="button" onclick="vaEdit(${i})">Edit</button> <button class="btn-danger" type="button" onclick="vaHapus(${i})">Hapus</button></td></tr>`});
+    html+='</tbody></table>';wrap.innerHTML=html;
+    renderPagination('vaTablePagination',vaData.length,vaTablePage,vaTablePageSize,'setVaTablePage');
+  }
+  vaRenderChart();
+  vaRenderRecommendations();
+  vaRenderBlackSpot();
+}
+function vaRenderBlackSpot(){
+  const wrap=document.getElementById('vaBlackSpot');if(!wrap)return;
+  if(!vaData.length){wrap.innerHTML='<div class="hotspot-empty">Belum ada data untuk analisis Black Spot/Black Section.</div>';return}
+  const groups=new Map();
+  vaData.forEach(r=>{
+    const key=[r.jenis,String(r.lokasi||'').trim().toLowerCase(),String(r.arah||'').trim().toLowerCase()].join('|');
+    if(!groups.has(key))groups.set(key,{jenis:r.jenis,lokasi:r.lokasi,arah:r.arah||'',exposure:0,kecelakaan:0,meninggal:0,rows:0,periods:new Set(),validExposure:true});
+    const g=groups.get(key),c=vaCalc(r);g.rows++;g.periods.add(r.periode);
+    g.kecelakaan+=Number(r.kecelakaan)||0;g.meninggal+=Number(r.meninggal)||0;
+    if(!(c.exposure>0)){g.validExposure=false}else{g.exposure+=c.exposure}
+  });
+  const list=[...groups.values()].map(g=>({...g,tk:g.validExposure&&g.exposure>0?g.kecelakaan*1e8/g.exposure:null,tf:g.validExposure&&g.exposure>0?g.meninggal*1e8/g.exposure:null,periodeCount:g.periods.size}));
+  const percentile=(values,p)=>{const a=values.filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return null;const pos=(a.length-1)*p,lo=Math.floor(pos),hi=Math.ceil(pos);return lo===hi?a[lo]:a[lo]+(a[hi]-a[lo])*(pos-lo)};
+  list.forEach(g=>{
+    const peers=list.filter(x=>x.jenis===g.jenis&&Number.isFinite(x.tk)).map(x=>x.tk);
+    g.p75=percentile(peers,.75);g.p90=percentile(peers,.90);
+    if(!Number.isFinite(g.tk)){g.level='incomplete';g.label='DATA BELUM LENGKAP'}
+    else if(g.meninggal>0||(g.kecelakaan>0&&g.p90!==null&&g.tk>g.p90)){g.level='high';g.label=g.jenis==='Titik'?'KANDIDAT BLACK SPOT — PRIORITAS TINGGI':'KANDIDAT BLACK SECTION — PRIORITAS TINGGI'}
+    else if(g.kecelakaan>0&&g.p75!==null&&g.tk>g.p75){g.level='medium';g.label=g.jenis==='Titik'?'KANDIDAT BLACK SPOT — EVALUASI':'KANDIDAT BLACK SECTION — EVALUASI'}
+    else if(g.kecelakaan>0){g.level='monitor';g.label='PERLU PEMANTAUAN'}
+    else{g.level='monitor';g.label='PEMANTAUAN RUTIN'}
+  });
+  const rank={high:0,medium:1,monitor:2,incomplete:3};
+  list.sort((a,b)=>(rank[a.level]-rank[b.level])||((b.tf??-1)-(a.tf??-1))||((b.tk??-1)-(a.tk??-1))||b.kecelakaan-a.kecelakaan);
+  let html='<table><thead><tr><th>Prioritas</th><th>Cakupan</th><th>Lokasi</th><th>Arah</th><th>Periode Tercakup</th><th>Total Kecelakaan</th><th>Total Meninggal</th><th>Paparan (kendaraan-km)</th><th>TK / 100 juta kend-km</th><th>TF / 100 juta kend-km</th><th>Tindak Lanjut Awal</th></tr></thead><tbody>';
+  list.forEach(g=>{
+    let action='Pertahankan pemantauan dan bandingkan dengan periode berikutnya.';
+    if(g.level==='high')action='Prioritaskan investigasi kejadian, audit keselamatan, dan rencana penanganan berbasis temuan lapangan.';
+    else if(g.level==='medium')action='Lakukan inspeksi terarah dan telaah pola kecelakaan sebelum menetapkan tindakan.';
+    else if(g.level==='incomplete')action='Lengkapi volume, panjang segmen, atau konsistensi periode; lokasi belum dapat dibandingkan secara adil.';
+    html+=`<tr><td>${g.label}</td><td>${escapeHtml(g.jenis)}</td><td>${escapeHtml(g.lokasi)}</td><td>${escapeHtml(g.arah||'Tidak ditentukan')}</td><td>${g.periodeCount}</td><td>${vaFmt(g.kecelakaan,0)}</td><td>${vaFmt(g.meninggal,0)}</td><td>${g.validExposure?vaFmt(g.exposure,0):'Data belum lengkap'}</td><td>${g.tk===null?'Data belum lengkap':vaFmt(g.tk)}</td><td>${g.tf===null?'Data belum lengkap':vaFmt(g.tf)}</td><td>${action}</td></tr>`;
+  });
+  html+='</tbody></table><div class="small" style="margin-top:8px;line-height:1.5">Metode: data digabung per nama lokasi, cakupan (titik/ruas), dan arah. Prioritas tinggi ditandai jika ada fatalitas atau TK melebihi P90 kelompok cakupan; evaluasi jika TK melebihi P75. Persentil dihitung dari lokasi yang dimasukkan, sehingga hasil bersifat relatif terhadap dataset dan tidak menggantikan kriteria resmi. Periksa agar data per periode tidak ganda atau tumpang tindih.</div>';
+  wrap.innerHTML=html;
+}
+var vaRecPriorityFilter = 'all';
+function vaRenderRecommendations(){
+  const wrap=document.getElementById('vaRecommendations');if(!wrap)return;
+  if(!vaData.length){wrap.innerHTML='<div class="hotspot-empty">Belum ada data. Masukkan data kecelakaan dan volume kendaraan untuk menyusun rekomendasi.</div>';return}
+  const valid=vaData.map((r,i)=>({r,i,c:vaCalc(r)})).filter(x=>x.c.exposure>0);
+  if(!valid.length){wrap.innerHTML='<div class="hotspot-empty">Paparan kendaraan-km belum valid. Periksa volume dan panjang segmen.</div>';return}
+  const percentile=(values,p)=>{const a=values.filter(Number.isFinite).sort((x,y)=>x-y);if(!a.length)return null;const pos=(a.length-1)*p,lo=Math.floor(pos),hi=Math.ceil(pos);return lo===hi?a[lo]:a[lo]+(a[hi]-a[lo])*(pos-lo)};
+  const tkVals=valid.map(x=>x.c.tk).filter(Number.isFinite),p75=percentile(tkVals,.75),p90=percentile(tkVals,.90);
+  const ordered=valid.map(x=>{
+    const {r,c,i}=x;let level='low',label='PEMANTAUAN',actions=[];
+    if(r.meninggal>0){level='high';label='PRIORITAS TINGGI';actions.push('Lakukan investigasi mendalam terhadap setiap kejadian fatal, termasuk kronologi, tipe tabrakan, kondisi kendaraan, dan faktor manusia.');actions.push('Laksanakan audit keselamatan pada lokasi/segmen: geometri, jarak pandang, median dan pagar pengaman, rambu, marka, penerangan, permukaan jalan, serta drainase.');actions.push('Tentukan tindakan korektif setelah penyebab terindikasi dan diverifikasi oleh tim teknis.');}
+    else if((p90!==null&&c.tk>p90)||(r.kecelakaan>0&&p75!==null&&c.tk>p75)){level='high';label='PRIORITAS EVALUASI';actions.push('Lakukan inspeksi/audit keselamatan terarah dan telaah pola kecelakaan berdasarkan waktu, arah, jenis kejadian, serta kondisi cuaca.');actions.push('Periksa konsistensi rambu, marka, delineator, penerangan, kondisi perkerasan, drainase, jarak pandang, dan perangkat keselamatan sisi jalan.');}
+    else if(r.kecelakaan>0){level='medium';label='PERLU TINDAKAN';actions.push('Analisis pola kejadian dan lakukan inspeksi lapangan untuk menemukan faktor yang dapat diperbaiki.');actions.push('Evaluasi kebutuhan pemeliharaan marka/rambu, penerangan, perkerasan, drainase, serta pengendalian kecepatan sesuai temuan lapangan.');}
+    else {actions.push('Pertahankan inspeksi dan pemeliharaan rutin; jangan menyimpulkan lokasi aman hanya karena tidak ada kecelakaan pada satu periode.');}
+    if(r.kecelakaan>0&&r.meninggal===0)actions.push('Tinjau data luka berat/ringan dan tipe kecelakaan jika tersedia agar tingkat keparahan tidak dinilai dari fatalitas saja.');
+    if(vaData.length<4)actions.push('Data pembanding masih terbatas; tingkat prioritas relatif belum stabil dan perlu dibandingkan dengan periode tambahan atau benchmark yang setara.');
+    actions.push('Konfirmasi bahwa volume, panjang segmen, arah, dan periode pengamatan benar-benar mewakili lokasi; hindari paparan yang terhitung ganda.');
+    return {r,c,i,level,label,actions};
+  }).sort((a,b)=>(({high:0,medium:1,low:2}[a.level])-({high:0,medium:1,low:2}[b.level]))||((b.c.tk||0)-(a.c.tk||0)));
+  const allOrdered=ordered;
+  const filteredOrdered=vaRecPriorityFilter==='all'?allOrdered:allOrdered.filter(x=>x.level===vaRecPriorityFilter);
+  const summary=`${allOrdered.filter(x=>x.level==='high').length} prioritas tinggi/evaluasi · ${allOrdered.filter(x=>x.level==='medium').length} perlu tindakan · ${allOrdered.filter(x=>x.level==='low').length} pemantauan`;
+  if(!filteredOrdered.length){wrap.innerHTML=`<div class="note" style="margin-bottom:12px"><b>Ringkasan seluruh data:</b> ${summary}.</div><div class="hotspot-empty">Tidak ada rekomendasi pada prioritas yang dipilih.</div>`;return;}
+  let html=`<div class="note" style="margin-bottom:12px"><b>Ringkasan:</b> ${summary}. Kategori tingkat kecelakaan relatif menggunakan persentil P75/P90 dari data yang dimasukkan; ini adalah peringkat internal, bukan ambang regulasi atau benchmark nasional.</div>`;
+  filteredOrdered.forEach(x=>{
+    const r=x.r,c=x.c;
+    html+=`<div class="va-recommendation va-rec-${x.level}"><div class="va-rec-title">${escapeHtml(x.label)} — ${escapeHtml(r.lokasi)} (${escapeHtml(r.jenis)})</div><div class="va-rec-meta">Periode: ${escapeHtml(r.periode)} · Arah: ${escapeHtml(r.arah||'Tidak ditentukan')} · Kecelakaan: ${vaFmt(r.kecelakaan,0)} · Meninggal: ${vaFmt(r.meninggal,0)} · TK: ${c.tk===null?'—':vaFmt(c.tk)} per 100 juta kendaraan-km · TF: ${c.tf===null?'—':vaFmt(c.tf)}</div><b>Rekomendasi awal:</b><ul class="va-rec-list">${x.actions.map(a=>`<li>${escapeHtml(a)}</li>`).join('')}</ul></div>`;
+  });
+  wrap.innerHTML=html;
+}
+function vaRenderChart(){
+  const canvas=document.getElementById('vaChart');if(!canvas||typeof Chart==='undefined')return;
+  if(vaChart)vaChart.destroy();
+  const labels=vaData.map(r=>`${r.periode} · ${r.lokasi}`);
+  vaChart=new Chart(canvas,{type:'bar',data:{labels,datasets:[
+    {label:'Jumlah Kecelakaan',data:vaData.map(r=>r.kecelakaan),yAxisID:'y'},
+    {label:'TK per 100 juta kendaraan-km',data:vaData.map(r=>{const c=vaCalc(r);return c.tk===null?null:Number(c.tk.toFixed(4))}),type:'line',yAxisID:'y1',tension:.2}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},scales:{y:{beginAtZero:true,title:{display:true,text:'Jumlah kecelakaan'}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'TK per 100 juta kendaraan-km'}}}}});
+}
+function vaRowsForExcel(){
+  return vaData.map((r,i)=>{const c=vaCalc(r);return {No:i+1,Periode:r.periode,Cakupan:r.jenis,Lokasi:r.lokasi,Arah:r.arah||'',Sumber_Volume:r.mode==='lhr'?'LHR harian':'VLL bulanan',Volume_Input:r.volume,Jumlah_Hari:r.mode==='lhr'?r.hari:'',Panjang_Segmen_km:r.panjang,Total_Kendaraan:c.totalKendaraan,Exposure_Kendaraan_km:c.exposure,Jumlah_Kecelakaan:r.kecelakaan,Meninggal:r.meninggal,TK_per_100_Juta_Kendaraan_km:c.tk,TF_per_100_Juta_Kendaraan_km:c.tf}});
+}
+function vaDownloadTemplate(){
+  if(typeof XLSX==='undefined'){alert('Pustaka Excel belum tersedia.');return}
+  const rows=[{Periode:'2026-01',Cakupan:'Ruas',Lokasi:'Contoh Ruas A',Arah:'Dua Arah',Sumber_Volume:'LHR harian',Volume_Input:30000,Jumlah_Hari:31,Panjang_Segmen_km:10,Jumlah_Kecelakaan:4,Meninggal:1}];
+  const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Template Analisis Volume');XLSX.writeFile(wb,'Template_Analisis_Volume_Kecelakaan.xlsx');
+}
+function vaExportExcel(){
+  if(!vaData.length){alert('Belum ada data analisis volume untuk diekspor.');return}
+  if(typeof XLSX==='undefined'){alert('Pustaka Excel belum tersedia.');return}
+  const ws=XLSX.utils.json_to_sheet(vaRowsForExcel()),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Analisis Volume');XLSX.writeFile(wb,'Analisis_Kecelakaan_Berdasarkan_Volume.xlsx');
+}
+function vaUploadExcel(e){
+  const file=e.target.files&&e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(evt){
+    try{
+      const wb=XLSX.read(evt.target.result,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{defval:''});let imported=0;
+      rows.forEach(x=>{
+        const periode=String(x.Periode||x.periode||'').substring(0,7);
+        const jenis=String(x.Cakupan||x.jenis||'Ruas').toLowerCase().includes('titik')?'Titik':'Ruas';
+        const lokasi=String(x.Lokasi||x['Nama Titik/Ruas']||x.lokasi||'').trim();
+        const arah=String(x.Arah||x.arah||'').trim();
+        const src=String(x.Sumber_Volume||x['Sumber Volume']||x.mode||'LHR harian').toLowerCase();
+        const mode=src.includes('vll')?'vll':'lhr';
+        const volume=Number(x.Volume_Input??x.Volume??x.LHR??x.VLL_Bulanan??0);
+        const hari=Number(x.Jumlah_Hari??x.Hari??30)||30;
+        const panjang=Number(x.Panjang_Segmen_km??x.Panjang_Ruas_km??x.Panjang??0);
+        const kecelakaan=Number(x.Jumlah_Kecelakaan??x.Kecelakaan??0);
+        const meninggal=Number(x.Meninggal??x.Fatalitas??0);
+        if(!periode||!lokasi||!(volume>0)||!(panjang>0)||kecelakaan<0||meninggal<0)return;
+        vaData.push({periode,jenis,lokasi,arah,mode,volume,hari,panjang,kecelakaan,meninggal});imported++;
+      });
+      vaData.sort((a,b)=>a.periode.localeCompare(b.periode)||a.lokasi.localeCompare(b.lokasi));vaSave();vaRender();alert(imported+' baris analisis volume berhasil diimpor.');
+    }catch(err){alert('File Excel tidak dapat dibaca: '+err.message)}
+    e.target.value='';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+
+window.addEventListener('DOMContentLoaded', ()=>{
+  vaUpdateModeLabel();
+  vaLoad();
+  loadBenchmarkTf();
+  loadHotspot();
+  autoLoadLocalStorage();
+});
+</script>
+
+<script>
+(function(){
+  function showSidebarPage(target){
+    document.querySelectorAll('.sidebar-page').forEach(p=>p.classList.toggle('active-page',p.id===target));
+    document.querySelectorAll('.sidebar-link').forEach(b=>b.classList.toggle('active',b.dataset.target===target));
+    const sidebar=document.getElementById('appSidebar');
+    if(window.innerWidth<=760) sidebar.classList.remove('open');
+    if(target==='panel-grafik' && window.chart) setTimeout(()=>window.chart.resize(),60);
+    if(target==='panel-volume'){
+      setTimeout(()=>{ if(window.vaChart && typeof window.vaChart.resize==='function') window.vaChart.resize(); },60);
+    }
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  document.addEventListener('DOMContentLoaded',function(){
+    document.querySelectorAll('.sidebar-link').forEach(b=>b.addEventListener('click',()=>showSidebarPage(b.dataset.target)));
+    document.getElementById('sidebarToggle').addEventListener('click',()=>document.getElementById('appSidebar').classList.toggle('open'));
+    showSidebarPage('panel-input');
+  });
+})();
+</script>
+\n</body>
+</html>
