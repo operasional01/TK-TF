@@ -22,6 +22,17 @@ button{border:0;border-radius:7px;padding:10px 14px;cursor:pointer;font-weight:b
 .btn-warning{background:#d97706;color:#fff}.btn-danger{background:#dc2626;color:#fff}
 .btn-secondary{background:#475569;color:#fff}
 .actions{margin-top:15px}
+/* Toolbar ringkas Google Sheets */
+.sheets-toolbar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 18px;padding:8px 10px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.sheets-toolbar .sheets-state{font-size:12px;color:#64748b;margin:0 4px 0 2px}
+.sheets-toolbar button{font-size:12px;padding:8px 10px;margin:0;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:7px}
+.sheets-toolbar .sheets-send{color:#15803d;border-color:#86efac}
+.sheets-toolbar .sheets-load{color:#1d4ed8;border-color:#93c5fd}
+.sheets-config{width:100%;flex-basis:100%;padding:10px 4px 4px;border-top:1px solid #e2e8f0;margin-top:4px}
+.sheets-config[hidden]{display:none}
+.sheets-config .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.sheets-config-toggle{margin-left:auto!important}
+
 .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
 .card{padding:16px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0}
 .card .title{font-size:12px;color:#64748b}.card .value{font-size:22px;font-weight:bold;margin-top:7px}
@@ -118,6 +129,21 @@ body{background:#f1f5f9}
 <div class="subtitle">Perhitungan berbasis exposure kendaraan-km</div>
 
 <div class="panel sidebar-page active-page" id="panel-input">
+<div class="sheets-toolbar" id="sheetsToolbar" aria-label="Kontrol Google Sheets">
+  <span class="sheets-state" id="sheetsConnectionState">Google Sheets: belum dikonfigurasi</span>
+  <button type="button" onclick="toggleSheetsConfig()">⚙ Hubungkan</button>
+  <button type="button" class="sheets-send" onclick="saveAllToSheets()">⬆ Kirim ke Sheets</button>
+  <button type="button" class="sheets-load" onclick="loadAllFromSheets()">⬇ Muat dari Sheets</button>
+  <button type="button" class="sheets-config-toggle" onclick="toggleSheetsConfig()">Pengaturan</button>
+  <div class="sheets-config" id="sheetsConfigPanel" hidden>
+    <div class="small" style="margin-bottom:10px">Simpan dan muat data TK/TF, titik rawan, analisis volume, serta benchmark melalui Google Sheets. Pengaturan koneksi disimpan di browser ini.</div>
+    <div class="grid">
+      <div><label for="sheetsWebAppUrl">URL Web App Google Apps Script</label><input id="sheetsWebAppUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div><label for="sheetsAccessToken">Token akses</label><input id="sheetsAccessToken" type="password" placeholder="Token yang sama dengan Apps Script"></div>
+    </div>
+    <div class="actions"><button class="btn-secondary" type="button" onclick="saveSheetsConfig()">Simpan Pengaturan</button><span id="sheetsSyncStatus" class="small" role="status" aria-live="polite">Belum tersambung.</span></div>
+  </div>
+</div>
 <h2>1. Input Data</h2>
 <div class="grid">
 <div><label>Periode</label><input id="periode" type="month"></div>
@@ -1758,7 +1784,123 @@ function vaUploadExcel(e){
 }
 
 
+
+// Integrasi Google Sheets: modul utama, titik rawan, analisis volume, dan benchmark.
+const SHEETS_CONFIG_KEY = 'analisisTKTFGoogleSheetsConfig_v1';
+function getSheetsConfig(){
+  return {
+    url: String(document.getElementById('sheetsWebAppUrl')?.value || '').trim(),
+    token: String(document.getElementById('sheetsAccessToken')?.value || '').trim()
+  };
+}
+function setSheetsStatus(message, isError=false){
+  const el=document.getElementById('sheetsSyncStatus');
+  if(!el)return;
+  el.textContent=message;
+  el.style.color=isError?'#b91c1c':'#166534';
+}
+function toggleSheetsConfig(){const panel=document.getElementById('sheetsConfigPanel');if(panel)panel.hidden=!panel.hidden;}
+function updateSheetsConnectionState(){const el=document.getElementById('sheetsConnectionState');if(!el)return;const url=(document.getElementById('sheetsWebAppUrl')?.value||'').trim();const token=(document.getElementById('sheetsAccessToken')?.value||'').trim();el.textContent=(url&&token)?'Google Sheets: terkonfigurasi':'Google Sheets: belum dikonfigurasi';}
+function saveSheetsConfig(){
+  updateSheetsConnectionState();
+  const cfg=getSheetsConfig();
+  if(!/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec(?:\?.*)?$/.test(cfg.url)){
+    setSheetsStatus('Masukkan URL Web App Apps Script yang berakhiran /exec.',true);
+    alert('URL harus berupa URL Web App Google Apps Script yang berakhiran /exec.');
+    return false;
+  }
+  if(!cfg.token){setSheetsStatus('Token akses belum diisi.',true);alert('Masukkan token akses yang sama dengan token pada Apps Script.');return false;}
+  localStorage.setItem(SHEETS_CONFIG_KEY,JSON.stringify(cfg));
+  setSheetsStatus('Pengaturan koneksi disimpan di browser ini.');
+  return true;
+}
+function loadSheetsConfig(){
+  try{
+    const cfg=JSON.parse(localStorage.getItem(SHEETS_CONFIG_KEY)||'{}');
+    if(cfg.url)document.getElementById('sheetsWebAppUrl').value=cfg.url;
+    if(cfg.token)document.getElementById('sheetsAccessToken').value=cfg.token;
+  }catch(e){console.warn('Pengaturan Google Sheets tidak dapat dimuat:',e)}
+}
+function getAllSheetsPayload(){
+  return {
+    main: Array.isArray(data)?data:[],
+    hotspots: Array.isArray(titikRawan)?titikRawan:[],
+    volume: Array.isArray(vaData)?vaData:[],
+    settings: { benchmarkTf: Number(BPJT_TF_2024)||0.1211 }
+  };
+}
+async function saveAllToSheets(){
+  const cfg=getSheetsConfig();
+  if(!cfg.url || !cfg.token){setSheetsStatus('Isi URL Web App dan token terlebih dahulu.',true);alert('Isi URL Web App dan token, lalu klik Simpan Pengaturan.');return;}
+  if(!saveSheetsConfig())return;
+  const payload=getAllSheetsPayload();
+  setSheetsStatus('Mengirim data ke Google Sheets…');
+  try{
+    // text/plain + no-cors menghindari preflight CORS pada Google Apps Script.
+    // Karena respons opaque, status ini hanya mengonfirmasi permintaan terkirim, bukan verifikasi tulis.
+    await fetch(cfg.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({action:'saveAll',token:cfg.token,payload})});
+    setSheetsStatus('Permintaan simpan terkirim. Klik “Muat dari Google Sheets” untuk memverifikasi hasil.');
+    alert('Permintaan penyimpanan sudah dikirim ke Google Sheets. Untuk memastikan data tersimpan, klik “Muat dari Google Sheets”.');
+  }catch(err){
+    setSheetsStatus('Gagal mengirim data: '+err.message,true);
+    alert('Gagal mengirim data ke Google Sheets: '+err.message);
+  }
+}
+function loadAllFromSheets(){
+  const cfg=getSheetsConfig();
+  if(!cfg.url || !cfg.token){setSheetsStatus('Isi URL Web App dan token terlebih dahulu.',true);alert('Isi URL Web App dan token, lalu klik Simpan Pengaturan.');return;}
+  if(!saveSheetsConfig())return;
+  setSheetsStatus('Memuat data dari Google Sheets…');
+  const callback='tkTfSheetsCallback_'+Date.now()+'_'+Math.floor(Math.random()*100000);
+  const script=document.createElement('script');
+  let timeout=setTimeout(()=>{
+    cleanup();
+    setSheetsStatus('Waktu tunggu habis. Periksa URL deployment, akses Web App, dan token.',true);
+    alert('Tidak ada respons dari Google Sheets. Pastikan Apps Script sudah di-deploy sebagai Web App dengan akses yang sesuai.');
+  },30000);
+  function cleanup(){clearTimeout(timeout);try{delete window[callback]}catch(e){};if(script.parentNode)script.parentNode.removeChild(script);}
+  window[callback]=function(response){
+    cleanup();
+    if(!response || response.ok!==true){
+      const message=response?.error||'Respons dari Google Sheets tidak valid.';
+      setSheetsStatus('Gagal memuat: '+message,true);alert('Gagal memuat dari Google Sheets: '+message);return;
+    }
+    const p=response.payload||{};
+    if(!Array.isArray(p.main)||!Array.isArray(p.hotspots)||!Array.isArray(p.volume)){
+      setSheetsStatus('Struktur data di Sheets tidak lengkap.',true);
+      alert('Struktur data di Sheets tidak lengkap. Periksa Apps Script dan sheet penyimpanan.');
+      return;
+    }
+    data=p.main;
+    data.sort((a,b)=>String(a.periode||'').localeCompare(String(b.periode||'')));
+    titikRawan=p.hotspots;
+    vaData=p.volume;
+    if(p.settings && Number.isFinite(Number(p.settings.benchmarkTf)) && Number(p.settings.benchmarkTf)>=0){
+      BPJT_TF_2024=Number(p.settings.benchmarkTf);
+      const b=document.getElementById('benchmarkTfInput');if(b)b.value=BPJT_TF_2024.toFixed(4);
+      const bt=document.getElementById('benchmarkTfText');if(bt)bt.textContent=BPJT_TF_2024.toFixed(4);
+      localStorage.setItem('analisisKecelakaanFatalitasBenchmarkTf',String(BPJT_TF_2024));
+    }
+    localStorage.setItem('analisisKecelakaanFatalitasJalanTol',JSON.stringify(data));
+    localStorage.setItem('analisisKecelakaanFatalitasTitikRawan',JSON.stringify(titikRawan));
+    localStorage.setItem(VA_STORAGE_KEY,JSON.stringify(vaData));
+    dataTablePage=1;hotspotTablePage=1;vaTablePage=1;
+    render();renderHotspot();vaRender();updateStatus();updateHistoricalMaximums();
+    setSheetsStatus('Berhasil memuat '+data.length+' data utama, '+titikRawan.length+' titik rawan, dan '+vaData.length+' data analisis volume.');
+    alert('Data berhasil dimuat dari Google Sheets.\\nData utama: '+data.length+'\\nTitik rawan: '+titikRawan.length+'\\nAnalisis volume: '+vaData.length);
+  };
+  script.onerror=function(){cleanup();setSheetsStatus('Gagal mengakses Apps Script. Periksa URL dan deployment.',true);alert('Tidak dapat mengakses Apps Script. Periksa URL Web App dan akses deployment.');};
+  const url=new URL(cfg.url);
+  url.searchParams.set('action','loadAll');
+  url.searchParams.set('token',cfg.token);
+  url.searchParams.set('callback',callback);
+  script.src=url.toString();
+  document.head.appendChild(script);
+}
+
 window.addEventListener('DOMContentLoaded', ()=>{
+  loadSheetsConfig();
   vaUpdateModeLabel();
   vaLoad();
   loadBenchmarkTf();
@@ -1787,5 +1929,6 @@ window.addEventListener('DOMContentLoaded', ()=>{
   });
 })();
 </script>
-\n</body>
+\n<script>document.addEventListener("DOMContentLoaded",function(){updateSheetsConnectionState();document.getElementById("sheetsWebAppUrl")?.addEventListener("input",updateSheetsConnectionState);document.getElementById("sheetsAccessToken")?.addEventListener("input",updateSheetsConnectionState);});</script>
+</body>
 </html>
