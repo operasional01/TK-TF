@@ -173,6 +173,13 @@ body{background:#f1f5f9}
 
 <div class="panel sidebar-page" id="panel-indikator">
 <h2>2. Indikator Utama s/d Bulan Lalu</h2>
+<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px">
+  <label for="indikatorYearFilter" style="margin:0">Filter Tahun:</label>
+  <select id="indikatorYearFilter" onchange="renderIndikatorTahun()" style="max-width:220px;margin:0">
+    <option value="all">Total Semua Tahun</option>
+  </select>
+  <span class="small" id="indikatorYearInfo">Menampilkan total semua tahun.</span>
+</div>
 <div class="cards">
 <div class="card"><div class="title">Exposure Kendaraan-km</div><div class="value" id="exposure">0</div></div>
 <div class="card"><div class="title">Tingkat Kecelakaan</div><div class="value" id="tk">0</div><div class="small">/ 100 juta kendaraan-km</div></div>
@@ -305,6 +312,27 @@ Panel ini digunakan untuk mencatat lokasi/titik rawan secara manual. Data titik 
 
 <div id="hotspotTableWrap" class="hotspot-table-wrap"></div>
 <div id="hotspotPagination" class="table-pagination"></div>
+
+<div style="margin-top:22px;padding-top:6px;border-top:1px solid #e2e8f0">
+  <h3 style="margin-top:22px">Lokasi CCTV &amp; Link CCTV Online</h3>
+  <div class="note">Catat lokasi dan tautan CCTV yang dapat diakses melalui browser. Tautan akan dibuka pada tab baru; akses siaran bergantung pada izin, jaringan, dan dukungan dari penyedia CCTV.</div>
+  <div class="va-grid" style="margin-top:14px">
+    <div><label for="cctvNama">Nama CCTV</label><input id="cctvNama" type="text" placeholder="Contoh: CCTV KM 15"></div>
+    <div><label for="cctvSta">STA / KM</label><input id="cctvSta" type="text" placeholder="Contoh: KM 15+500"></div>
+    <div><label for="cctvArah">Arah</label><select id="cctvArah"><option value="">Pilih arah</option><option>Semarang</option><option>Demak</option><option>Dua Arah</option><option>Lainnya</option></select></div>
+    <div><label for="cctvUrl">Link CCTV (URL)</label><input id="cctvUrl" type="url" placeholder="https://..." inputmode="url"></div>
+    <div><label for="cctvLokasi">Lokasi / Koordinat</label><input id="cctvLokasi" type="text" placeholder="Contoh: Gerbang tol / -6.9, 110.5"></div>
+    <div><label for="cctvKeterangan">Keterangan</label><input id="cctvKeterangan" type="text" placeholder="Catatan lokasi atau status akses"></div>
+  </div>
+  <div class="actions">
+    <button class="btn-primary" id="cctvBtnSimpan" type="button" onclick="cctvSimpan()">+ Tambah CCTV</button>
+    <button class="btn-secondary" id="cctvBtnBatal" type="button" onclick="cctvBatalEdit()" style="display:none">Batal Edit</button>
+    <button class="btn-success" type="button" onclick="cctvExportCSV()">Export CSV</button>
+    <button class="btn-danger" type="button" onclick="cctvHapusSemua()">Hapus Semua CCTV</button>
+  </div>
+  <div id="cctvTableWrap" class="table-wrap" style="margin-top:14px"><div class="hotspot-empty">Belum ada data CCTV. Tambahkan lokasi dan link CCTV di atas.</div></div>
+
+</div>
 </div>
 
 
@@ -616,6 +644,30 @@ function getHotspotFilterData(){
   });
 }
 
+function renderIndikatorTahun(){
+  const select=document.getElementById('indikatorYearFilter');
+  if(!select)return;
+  const years=[...new Set(data.map(r=>String(r.periode||'').slice(0,4)).filter(y=>/^\d{4}$/.test(y)))].sort();
+  const previous=select.value||'all';
+  select.innerHTML='<option value="all">Total Semua Tahun</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  select.value=years.includes(previous)||previous==='all'?previous:'all';
+  const selected=select.value;
+  const filtered=selected==='all'?data:data.filter(r=>String(r.periode||'').startsWith(selected));
+  const total=filtered.reduce((a,r)=>({
+    exposure:a.exposure+calc(r).exposure,
+    acc:a.acc+(Number(r.kecelakaan)||0),
+    death:a.death+(Number(r.meninggal)||0),
+    length:a.length+(Number(r.panjang)||0)
+  }),{exposure:0,acc:0,death:0,length:0});
+  document.getElementById('exposure').textContent=rupiahOrNumber(total.exposure);
+  document.getElementById('tk').textContent=total.exposure?(total.acc*100000000/total.exposure).toFixed(2):'0';
+  document.getElementById('tf').textContent=total.exposure?(total.death*100000000/total.exposure).toFixed(2):'0';
+  document.getElementById('fatal100').textContent=total.acc?(total.death*100/total.acc).toFixed(2):'0';
+  document.getElementById('accKm').textContent=total.length?(total.acc/total.length).toFixed(2):'0';
+  const info=document.getElementById('indikatorYearInfo');
+  if(info)info.textContent=selected==='all'?`Total semua tahun • ${filtered.length} data periode`:`Tahun ${selected} • ${filtered.length} data periode`;
+}
+
 function render(){
   const tbody=document.querySelector('#dataTable tbody');
   tbody.innerHTML='';
@@ -636,19 +688,7 @@ function render(){
     <td><button class="btn-primary" type="button" onclick="editData(${i})">✏️ Edit</button> <button class="btn-danger" type="button" onclick="hapusData(${i})">Hapus</button></td>`;
     tbody.appendChild(tr);
   });
-  if(data.length){
-    const total=data.reduce((a,r)=>({
-      exposure:a.exposure+calc(r).exposure,
-      acc:a.acc+r.kecelakaan, death:a.death+r.meninggal
-    }),{exposure:0,acc:0,death:0});
-    document.getElementById('exposure').textContent=rupiahOrNumber(total.exposure);
-    document.getElementById('tk').textContent=(total.acc*100000000/total.exposure).toFixed(2);
-    document.getElementById('tf').textContent=(total.death*100000000/total.exposure).toFixed(2);
-    document.getElementById('fatal100').textContent=(total.acc?total.death*100/total.acc:0).toFixed(2);
-    document.getElementById('accKm').textContent=(data.reduce((s,r)=>s+r.kecelakaan,0)/data.reduce((s,r)=>s+r.panjang,0)).toFixed(2);
-  }else{
-    ['exposure','tk','tf','fatal100','accKm'].forEach(id=>document.getElementById(id).textContent='0');
-  }
+  renderIndikatorTahun();
   updateChart();
   updateStatus();
   updateHistoricalMaximums();
@@ -1930,5 +1970,62 @@ window.addEventListener('DOMContentLoaded', ()=>{
 })();
 </script>
 \n<script>document.addEventListener("DOMContentLoaded",function(){updateSheetsConnectionState();document.getElementById("sheetsWebAppUrl")?.addEventListener("input",updateSheetsConnectionState);document.getElementById("sheetsAccessToken")?.addEventListener("input",updateSheetsConnectionState);});</script>
+
+<script>
+// Modul CCTV terpisah; tidak mengubah perhitungan TK/TF atau Black Spot.
+const CCTV_STORAGE_KEY = 'analisisKecelakaanFatalitasCCTV_v1';
+let cctvData = [];
+let cctvEditIndex = -1;
+function cctvLoad(){
+  try { const saved=JSON.parse(localStorage.getItem(CCTV_STORAGE_KEY)||'[]'); cctvData=Array.isArray(saved)?saved:[]; }
+  catch(e){ cctvData=[]; }
+  cctvRender();
+}
+function cctvSave(){ localStorage.setItem(CCTV_STORAGE_KEY,JSON.stringify(cctvData)); }
+function cctvBatalEdit(){
+  cctvEditIndex=-1;
+  ['cctvNama','cctvSta','cctvArah','cctvUrl','cctvLokasi','cctvKeterangan'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cctvBtnSimpan').textContent='+ Tambah CCTV';
+  document.getElementById('cctvBtnSimpan').className='btn-primary';
+  document.getElementById('cctvBtnBatal').style.display='none';
+}
+function cctvSimpan(){
+  const nama=document.getElementById('cctvNama').value.trim();
+  const sta=document.getElementById('cctvSta').value.trim();
+  const arah=document.getElementById('cctvArah').value;
+  const url=document.getElementById('cctvUrl').value.trim();
+  const lokasi=document.getElementById('cctvLokasi').value.trim();
+  const keterangan=document.getElementById('cctvKeterangan').value.trim();
+  if(!nama){alert('Isi nama CCTV terlebih dahulu.');return;}
+  let safeUrl='';
+  if(url){try{const parsed=new URL(url);if(!['http:','https:'].includes(parsed.protocol))throw new Error();safeUrl=parsed.href;}catch(e){alert('Link CCTV harus berupa URL lengkap yang diawali http:// atau https://');return;}}
+  if(!safeUrl){alert('Isi link CCTV online terlebih dahulu.');return;}
+  const row={nama,sta,arah,url:safeUrl,lokasi,keterangan};
+  if(cctvEditIndex>=0)cctvData[cctvEditIndex]=row;else cctvData.push(row);
+  cctvSave();cctvRender();cctvBatalEdit();
+}
+function cctvEdit(i){const r=cctvData[i];if(!r)return;cctvEditIndex=i;
+  document.getElementById('cctvNama').value=r.nama||'';document.getElementById('cctvSta').value=r.sta||'';
+  document.getElementById('cctvArah').value=r.arah||'';document.getElementById('cctvUrl').value=r.url||'';
+  document.getElementById('cctvLokasi').value=r.lokasi||'';document.getElementById('cctvKeterangan').value=r.keterangan||'';
+  document.getElementById('cctvBtnSimpan').textContent='Simpan Perubahan';document.getElementById('cctvBtnSimpan').className='btn-success';document.getElementById('cctvBtnBatal').style.display='inline-block';
+}
+function cctvHapus(i){if(!cctvData[i])return;if(confirm('Hapus data CCTV ini?')){cctvData.splice(i,1);cctvSave();cctvRender();if(cctvEditIndex===i)cctvBatalEdit();}}
+function cctvHapusSemua(){if(cctvData.length&&confirm('Hapus seluruh daftar CCTV?')){cctvData=[];cctvSave();cctvRender();cctvBatalEdit();}}
+function cctvRender(){const wrap=document.getElementById('cctvTableWrap');if(!wrap)return;
+  if(!cctvData.length){wrap.innerHTML='<div class="hotspot-empty">Belum ada data CCTV. Tambahkan lokasi dan link CCTV di atas.</div>';return;}
+  let html='<table><thead><tr><th>No</th><th>Nama CCTV</th><th>STA / KM</th><th>Arah</th><th>Lokasi / Koordinat</th><th>Keterangan</th><th>Link CCTV</th><th>Aksi</th></tr></thead><tbody>';
+  cctvData.forEach((r,i)=>{html+=`<tr><td>${i+1}</td><td>${escapeHtml(r.nama)}</td><td>${escapeHtml(r.sta||'-')}</td><td>${escapeHtml(r.arah||'-')}</td><td>${escapeHtml(r.lokasi||'-')}</td><td>${escapeHtml(r.keterangan||'-')}</td><td><button class="btn-success" type="button" onclick="cctvBuka(${i})">↗ Buka CCTV</button></td><td><button class="btn-primary" type="button" onclick="cctvEdit(${i})">Edit</button> <button class="btn-danger" type="button" onclick="cctvHapus(${i})">Hapus</button></td></tr>`;});
+  wrap.innerHTML=html+'</tbody></table>';
+}
+function cctvBuka(i){const r=cctvData[i];if(!r||!r.url)return;const u=new URL(r.url);if(!['http:','https:'].includes(u.protocol)){alert('URL CCTV tidak valid.');return;}window.open(u.href,'_blank','noopener,noreferrer');}
+function cctvExportCSV(){if(!cctvData.length){alert('Belum ada data CCTV untuk diekspor.');return;}
+  const cols=['nama','sta','arah','lokasi','keterangan','url'];const lines=[['Nama CCTV','STA/KM','Arah','Lokasi/Koordinat','Keterangan','Link CCTV'],...cctvData.map(r=>cols.map(k=>r[k]||''))];
+  const csv='\uFEFF'+lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='Daftar_Lokasi_CCTV.csv';a.click();URL.revokeObjectURL(a.href);
+}
+document.addEventListener('DOMContentLoaded',cctvLoad);
+</script>
+
 </body>
 </html>
