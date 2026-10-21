@@ -136,7 +136,7 @@ body{background:#f1f5f9}
   <button type="button" class="sheets-load" onclick="loadAllFromSheets()">⬇ Muat dari Sheets</button>
   <button type="button" class="sheets-config-toggle" onclick="toggleSheetsConfig()">Pengaturan</button>
   <div class="sheets-config" id="sheetsConfigPanel" hidden>
-    <div class="small" style="margin-bottom:10px">Simpan dan muat data TK/TF, titik rawan, analisis volume, serta benchmark melalui Google Sheets. Pengaturan koneksi disimpan di browser ini.</div>
+    <div class="small" style="margin-bottom:10px">Simpan dan muat data TK/TF, titik rawan, analisis volume, CCTV, serta benchmark melalui Google Sheets. Pengaturan koneksi disimpan di browser ini.</div>
     <div class="grid">
       <div><label for="sheetsWebAppUrl">URL Web App Google Apps Script</label><input id="sheetsWebAppUrl" type="url" placeholder="https://script.google.com/macros/s/.../exec"></div>
       <div><label for="sheetsAccessToken">Token akses</label><input id="sheetsAccessToken" type="password" placeholder="Token yang sama dengan Apps Script"></div>
@@ -1866,6 +1866,7 @@ function getAllSheetsPayload(){
     main: Array.isArray(data)?data:[],
     hotspots: Array.isArray(titikRawan)?titikRawan:[],
     volume: Array.isArray(vaData)?vaData:[],
+    cctv: Array.isArray(cctvData)?cctvData:[],
     settings: { benchmarkTf: Number(BPJT_TF_2024)||0.1211 }
   };
 }
@@ -1916,6 +1917,9 @@ function loadAllFromSheets(){
     data.sort((a,b)=>String(a.periode||'').localeCompare(String(b.periode||'')));
     titikRawan=p.hotspots;
     vaData=p.volume;
+    // CCTV disimpan bersama payload utama agar dapat dipulihkan lintas perangkat melalui Google Sheets.
+    cctvData=Array.isArray(p.cctv)?p.cctv:[];
+    localStorage.setItem(CCTV_STORAGE_KEY,JSON.stringify(cctvData));
     if(p.settings && Number.isFinite(Number(p.settings.benchmarkTf)) && Number(p.settings.benchmarkTf)>=0){
       BPJT_TF_2024=Number(p.settings.benchmarkTf);
       const b=document.getElementById('benchmarkTfInput');if(b)b.value=BPJT_TF_2024.toFixed(4);
