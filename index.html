@@ -1875,14 +1875,15 @@ async function saveAllToSheets(){
   if(!cfg.url || !cfg.token){setSheetsStatus('Isi URL Web App dan token terlebih dahulu.',true);alert('Isi URL Web App dan token, lalu klik Simpan Pengaturan.');return;}
   if(!saveSheetsConfig())return;
   const payload=getAllSheetsPayload();
-  setSheetsStatus('Mengirim data ke Google Sheets…');
+  const cctvCount=payload.cctv.length;
+  setSheetsStatus('Mengirim data ke Google Sheets… CCTV: '+cctvCount+' data.');
   try{
     // text/plain + no-cors menghindari preflight CORS pada Google Apps Script.
     // Karena respons opaque, status ini hanya mengonfirmasi permintaan terkirim, bukan verifikasi tulis.
     await fetch(cfg.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
       body:JSON.stringify({action:'saveAll',token:cfg.token,payload})});
-    setSheetsStatus('Permintaan simpan terkirim. Klik “Muat dari Google Sheets” untuk memverifikasi hasil.');
-    alert('Permintaan penyimpanan sudah dikirim ke Google Sheets. Untuk memastikan data tersimpan, klik “Muat dari Google Sheets”.');
+    setSheetsStatus('Permintaan simpan terkirim. CCTV dalam payload: '+cctvCount+' data. Klik “Muat dari Sheets” untuk verifikasi.');
+    alert('Permintaan penyimpanan sudah dikirim.\nData CCTV dalam payload: '+cctvCount+'\nCatatan: mode no-cors tidak dapat memastikan apakah server berhasil menulis data. Klik “Muat dari Sheets” untuk memverifikasi.');
   }catch(err){
     setSheetsStatus('Gagal mengirim data: '+err.message,true);
     alert('Gagal mengirim data ke Google Sheets: '+err.message);
@@ -1920,6 +1921,7 @@ function loadAllFromSheets(){
     // CCTV disimpan bersama payload utama agar dapat dipulihkan lintas perangkat melalui Google Sheets.
     cctvData=Array.isArray(p.cctv)?p.cctv:[];
     localStorage.setItem(CCTV_STORAGE_KEY,JSON.stringify(cctvData));
+    cctvRender();
     if(p.settings && Number.isFinite(Number(p.settings.benchmarkTf)) && Number(p.settings.benchmarkTf)>=0){
       BPJT_TF_2024=Number(p.settings.benchmarkTf);
       const b=document.getElementById('benchmarkTfInput');if(b)b.value=BPJT_TF_2024.toFixed(4);
@@ -1931,8 +1933,8 @@ function loadAllFromSheets(){
     localStorage.setItem(VA_STORAGE_KEY,JSON.stringify(vaData));
     dataTablePage=1;hotspotTablePage=1;vaTablePage=1;
     render();renderHotspot();vaRender();updateStatus();updateHistoricalMaximums();
-    setSheetsStatus('Berhasil memuat '+data.length+' data utama, '+titikRawan.length+' titik rawan, dan '+vaData.length+' data analisis volume.');
-    alert('Data berhasil dimuat dari Google Sheets.\\nData utama: '+data.length+'\\nTitik rawan: '+titikRawan.length+'\\nAnalisis volume: '+vaData.length);
+    setSheetsStatus('Berhasil memuat: '+data.length+' data utama, '+titikRawan.length+' titik rawan, '+vaData.length+' analisis volume, '+cctvData.length+' CCTV.');
+    alert('Data berhasil dimuat dari Google Sheets.\\nData utama: '+data.length+'\\nTitik rawan: '+titikRawan.length+'\\nAnalisis volume: '+vaData.length+'\\nCCTV: '+cctvData.length);
   };
   script.onerror=function(){cleanup();setSheetsStatus('Gagal mengakses Apps Script. Periksa URL dan deployment.',true);alert('Tidak dapat mengakses Apps Script. Periksa URL Web App dan akses deployment.');};
   const url=new URL(cfg.url);
